@@ -1,3 +1,5 @@
+use std::fmt;
+
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
     Card::Two(Suit::Heart),
@@ -63,10 +65,29 @@ enum Suit {
     Spade,
 }
 
+impl fmt::Display for Suit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Suit::Club => write(f, "C"),
+            Suit::Diamond => write(f, "D"),
+            Suit::Heart => write(f, "H"),
+            Suit::Spade => write(f,  "S"),
+        }
+}
+
 #[derive(PartialEq, Clone)]
 enum JokerId{
     A,
     B,
+}
+
+impl fmt::Display for JokerId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            JokerId::A => write(f, "A"),
+            JokerId::B => write(f, "B"),
+        }
+    }
 }
 
 #[derive(PartialEq, Clone)]
@@ -85,6 +106,26 @@ enum Card {
     Queen(Suit),
     King(Suit),
     Joker(JokerId),
+}
+
+impl fmt::Display for Card {
+    fn  fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Card::Ace(ref s) => write(f, "A{}", s), 
+            Card::Two(ref s) => write(f, "2{}", s),
+            Card::Three(ref s) => write(f, "3{}", s),
+            Card::Four(ref s) => write(f, "4{}", s),
+            Card::Five(ref s) => write(f, "5{}", s),
+            Card::Six(ref s) => write(f, "6{}", s),
+            Card::Seven(ref s) => write(f, "7{}", s),
+            Card::Eight(ref s) => write(f, "8{}", s),
+            Card::Nine(ref s) => write(f, "9{}", s),
+            Card::Ten(ref s) => write(f, "T{}", s),
+            Card::Jack(ref s) => write(f, "J{}", s),
+            Card::Queen(ref s) => write(f, "Q{}", s),
+            Card::King(ref s) => write(f, "K{}", s),
+            Card::Joker(ref id) => write(f, "J{}", id),
+        }
 }
 
 #[derive(PartialEq, Clone)]
@@ -121,8 +162,18 @@ impl Cards {
         }
         
         Cards(deck)
-    } 
+    }
+
 }
+
+imp fmt::Display for Cards {
+    fn  fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for card in Cards.iter() {
+            write(f, "{}, ", card)
+        }  
+}
+
+
 
 fn main() {
     println!("Hello World!");    
