@@ -107,18 +107,18 @@ impl Cards {
             NEW_DECK_ARR[..=51].to_vec()
         };
 
-        let mut additional: Vec<Card> = Vec::new();
         
         assert!(count > 0, "At least one deck is required");
 
         if count > 1 {
+            let mut additional: Vec<Card> = Vec::new();
             for _ in 2..count {
                 for card in deck.iter() {
                     additional.push(card.clone());
                 }
             }
+            deck.append(&mut additional);
         }
-        deck.append(&mut additional);
         
         Cards(deck)
     } 
