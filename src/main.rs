@@ -1,7 +1,7 @@
 use std::fmt;
 use bounded_integer::BoundedU8;
-use rand;
 use rand_distr::{Normal, Distribution};
+use rand::Rng;
 
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
@@ -181,7 +181,7 @@ impl Cards {
     // = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
     // the cutpoint is the index of the card after which we will cut - 
     // A cutpoint of 0 means the whole goes after the cut
-    fn cut(mut self, noise: NoiseLevel) -> (Cards, Cards) {
+    fn cut(mut self, noise: NoiseLevel) -> TwoStacks {
         let count: f64 = self.0.len() as f64;
         let noise: i16 = noise.into();
         let noise: f64 = noise.into();
@@ -195,39 +195,17 @@ impl Cards {
             cp => cp as usize,
         };
         let bottom = Cards(self.0.split_off(cutpoint));
-        (self.clone(), bottom)
+        TwoStacks(self.clone(), bottom)
     }
 
-    fn merge(mut self, other: mut Cards) => Cards {
-        let mut rng = rand::thread_rng();
-        let mut cards = Cards::default();
-        for _ in (0..(&self.0.len() + &other.0.len())) {
-            if rng.gen() {
-                match self.0.pop() {
-                    Some(card) -> cards.0.push(card),
-                    None -> {
-                        match other.0.pop() {
-                            Some(card) -> cards.0.push(card),
-                            None -> panic!("Must have loop counter wrong!"),
-                        }
-                    }
-                }
-            }  else {
-                match other.0.pop() {
-                    Some(card) -> cards.0.push(card),
-                    None -> {
-                        match self.0.pop() {
-                            Some(card) -> cards.0.push(card),
-                            None -> panic!("Must have loop counter wrong!"),
-                        }
-                    }
-                }
-            }
 
+    fn shuffle(mut self, riffle_count: usize, noise: NoiseLevel) -> Cards {
+        for _ in 0..riffle_count {
+            self = self.cut(NoiseLevel::new(10).unwrap()).merge();
         }
+        self
     }
 }
-
 
 
 impl fmt::Display for Cards {
@@ -239,14 +217,61 @@ impl fmt::Display for Cards {
     }  
 }
 
+struct TwoStacks (Cards, Cards);
+
+impl TwoStacks {
+    fn merge(mut self) -> Cards {
+        let TwoStacks(mut top, mut bottom) = self;
+        let mut rng = rand::thread_rng();
+        let mut cards = Cards::default();
+        for _ in 0..(&top.0.len() + &bottom.0.len()) {
+            if rng.gen() {
+                match top.0.pop() {
+                    Some(card) => cards.0.push(card),
+                    None => {
+                        match bottom.0.pop() {
+                            Some(card) => cards.0.push(card),
+                            None => panic!("Must have loop counter wrong!"),
+                        }
+                    }
+                }
+            }  else {
+                match bottom.0.pop() {
+                    Some(card) => cards.0.push(card),
+                    None => {
+                        match top.0.pop() {
+                            Some(card) => cards.0.push(card),
+                            None => panic!("Must have loop counter wrong!"),
+                        }
+                    }
+                }
+            }
+
+        }
+        cards
+    }
+}
+
 fn main() {
     println!("Hello World!");
     let deck = Cards::new(DeckStyle::Jokers, 1);
     println!("New deck: {deck}");
+    println!("");
     let mut top = Cards::default();
     let mut bottom = Cards::default();    
-    (top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
+    TwoStacks(top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
+    println!("");
     println!("After cut bottom: {bottom}");
+    println!("");
     println!("Cut point: {}", top.0.len());
+    println!("");
+    let deck = TwoStacks(top, bottom).merge();
+    println!("after first riffle:");
+    println!("{}", deck);
+    println!("");
+    let deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
+    println!("after 10 more riffles:");
+    println!("{}", deck);
+
 }
