@@ -181,7 +181,7 @@ impl Cards {
     // = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
     // the cutpoint is the index of the card after which we will cut - 
     // A cutpoint of 0 means the whole goes after the cut
-    fn cut(&mut self, noise: NoiseLevel) -> (Cards, Cards) {
+    fn cut(mut self, noise: NoiseLevel) -> (Cards, Cards) {
         let count: f64 = self.0.len() as f64;
         let noise: i16 = noise.into();
         let noise: f64 = noise.into();
@@ -198,6 +198,34 @@ impl Cards {
         (self.clone(), bottom)
     }
 
+    fn merge(mut self, other: mut Cards) => Cards {
+        let mut rng = rand::thread_rng();
+        let mut cards = Cards::default();
+        for _ in (0..(&self.0.len() + &other.0.len())) {
+            if rng.gen() {
+                match self.0.pop() {
+                    Some(card) -> cards.0.push(card),
+                    None -> {
+                        match other.0.pop() {
+                            Some(card) -> cards.0.push(card),
+                            None -> panic!("Must have loop counter wrong!"),
+                        }
+                    }
+                }
+            }  else {
+                match other.0.pop() {
+                    Some(card) -> cards.0.push(card),
+                    None -> {
+                        match self.0.pop() {
+                            Some(card) -> cards.0.push(card),
+                            None -> panic!("Must have loop counter wrong!"),
+                        }
+                    }
+                }
+            }
+
+        }
+    }
 }
 
 
@@ -213,7 +241,7 @@ impl fmt::Display for Cards {
 
 fn main() {
     println!("Hello World!");
-    let mut deck = Cards::new(DeckStyle::Jokers, 1);
+    let deck = Cards::new(DeckStyle::Jokers, 1);
     println!("New deck: {deck}");
     let mut top = Cards::default();
     let mut bottom = Cards::default();    
