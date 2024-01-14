@@ -214,7 +214,7 @@ fn main() {
     println!("New deck: {deck}");
     let mut top = Cards::default();
     let mut bottom = Cards::default();    
-    (top, bottom) = deck.cut(NoiseLevel::new(5).unwrap());
+    (top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
     println!("After cut bottom: {bottom}");
 }
