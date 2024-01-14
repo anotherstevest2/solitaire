@@ -125,7 +125,7 @@ impl fmt::Display for Card {
             Card::Jack(ref s) => write!(f, "J{}", s),
             Card::Queen(ref s) => write!(f, "Q{}", s),
             Card::King(ref s) => write!(f, "K{}", s),
-            Card::Joker(ref id) => write!(f, "J{}", id),
+            Card::Joker(ref id) => write!(f, "F{}", id),
         }
     }
 }
@@ -145,9 +145,9 @@ struct Cards (
 impl Cards {
     fn new(style: DeckStyle, count: usize) -> Cards {
         let mut deck = if style == DeckStyle::NoJokers {
-            NEW_DECK_ARR[..].to_vec()
-        } else {
             NEW_DECK_ARR[..=51].to_vec()
+        } else {
+            NEW_DECK_ARR[..].to_vec()
         };
 
         
