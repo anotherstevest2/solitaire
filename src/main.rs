@@ -197,7 +197,10 @@ impl Cards {
         let bottom = Cards(self.0.split_off(cutpoint));
         (self.clone(), bottom)
     }
+
 }
+
+
 
 impl fmt::Display for Cards {
     fn  fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
