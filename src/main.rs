@@ -205,6 +205,11 @@ impl Cards {
         }
         self
     }
+
+    fn reverse(mut self) -> Cards {
+        self.0.reverse();
+        self
+    }
 }
 
 
@@ -256,6 +261,9 @@ fn main() {
     println!("Hello World!");
     let deck = Cards::new(DeckStyle::Jokers, 1);
     println!("New deck: {deck}");
+    println!("");
+    let deck = deck.reverse();
+    println!("Reversed deck: {deck}");
     println!("");
     let mut top = Cards::default();
     let mut bottom = Cards::default();    
