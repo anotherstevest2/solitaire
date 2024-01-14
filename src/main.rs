@@ -217,4 +217,5 @@ fn main() {
     (top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
     println!("After cut bottom: {bottom}");
+    println!("Cut point: {}", top.0.len());
 }
