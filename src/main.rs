@@ -1,4 +1,6 @@
 use std::fmt;
+use bounded_integer;
+use rand_distr::{Normal, Distribution};
 
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
@@ -130,6 +132,10 @@ impl fmt::Display for Card {
     }
 }
 
+bounded_integer! {
+    struct NoiseLevel { 0..=10 }
+}
+
 #[derive(PartialEq, Clone)]
 enum DeckStyle {
     NoJokers,
@@ -166,6 +172,24 @@ impl Cards {
         Cards(deck)
     }
 
+    // noise == 0 => exact cut after first half(even count) or
+    // 50/50 chance of the middle card (out count) in the first or
+    // second half of the cut.
+    // for noise in 1 - 10 (inclusive) cut location is a normal 
+    // distribution with mean at the center point and Variance approximately
+    // smoothly varying from 1 to the number of cards (i.e. Standard Deviation
+    // = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
+    // the cutpoint is the index of the card after which we will cut - 
+    // A cutpoint of 0 means the whole goes after the cut
+    fn cut(&self, noise: NoiseLevel) -> (Cards, Cards) {
+        let count: f64 = self.0.len();
+        let sd = 1.0 + (noise - 1) * (f64::sqrt(count) - 1)/9.0;
+        let cutpoint = match Normal::new(count/2.0, sd) as isize {
+            cp if cp < 0 -> 0,
+            cp if cp > count -> count,
+            cp -> cp,
+        }
+    }
 }
 
 impl fmt::Display for Cards {
