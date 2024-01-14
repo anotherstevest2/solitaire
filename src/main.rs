@@ -201,7 +201,7 @@ impl Cards {
 
     fn shuffle(mut self, riffle_count: usize, noise: NoiseLevel) -> Cards {
         for _ in 0..riffle_count {
-            self = self.cut(NoiseLevel::new(10).unwrap()).merge();
+            self = self.cut(noise).merge();
         }
         self
     }
@@ -225,7 +225,7 @@ impl fmt::Display for Cards {
 struct TwoStacks (Cards, Cards);
 
 impl TwoStacks {
-    fn merge(mut self) -> Cards {
+    fn merge(self) -> Cards {
         let TwoStacks(mut top, mut bottom) = self;
         let mut rng = rand::thread_rng();
         let mut cards = Cards::default();
@@ -260,10 +260,10 @@ impl TwoStacks {
 fn main() {
     println!("Hello World!");
     let deck = Cards::new(DeckStyle::Jokers, 1);
-    println!("New deck: {deck}");
+    println!("New deck (face down): {deck}");
     println!("");
     let deck = deck.reverse();
-    println!("Reversed deck: {deck}");
+    println!("Reversed deck (or, if you like, orginal deck now face up): {deck}");
     println!("");
     let mut top = Cards::default();
     let mut bottom = Cards::default();    
