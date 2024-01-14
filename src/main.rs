@@ -1,5 +1,6 @@
 use std::fmt;
-use bounded_integer;
+use bounded_integer::BoundedU8;
+use rand;
 use rand_distr::{Normal, Distribution};
 
 const NEW_DECK_ARR: [Card; 54] = [
@@ -132,9 +133,7 @@ impl fmt::Display for Card {
     }
 }
 
-bounded_integer! {
-    struct NoiseLevel { 0..=10 }
-}
+type NoiseLevel = BoundedU8<0, 10>;
 
 #[derive(PartialEq, Clone)]
 enum DeckStyle {
@@ -142,6 +141,7 @@ enum DeckStyle {
     Jokers
 }
 
+#[derive(PartialEq, Clone, Default)]
 struct Cards (
     Vec<Card>,
 );
@@ -181,14 +181,21 @@ impl Cards {
     // = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
     // the cutpoint is the index of the card after which we will cut - 
     // A cutpoint of 0 means the whole goes after the cut
-    fn cut(&self, noise: NoiseLevel) -> (Cards, Cards) {
-        let count: f64 = self.0.len();
-        let sd = 1.0 + (noise - 1) * (f64::sqrt(count) - 1)/9.0;
-        let cutpoint = match Normal::new(count/2.0, sd) as isize {
-            cp if cp < 0 -> 0,
-            cp if cp > count -> count,
-            cp -> cp,
-        }
+    fn cut(&mut self, noise: NoiseLevel) -> (Cards, Cards) {
+        let count: f64 = self.0.len() as f64;
+        let noise: i16 = noise.into();
+        let noise: f64 = noise.into();
+        let sd = 1.0 + (noise - 1.0) * (f64::sqrt(count) - 1.0)/9.0;
+        let normal = Normal::new(count/2.0, sd).unwrap();
+        let cutpoint = normal.sample(&mut rand::thread_rng());
+        let cutpoint = cutpoint as isize;
+        let cutpoint = match cutpoint {
+            cp if cp < 0 => 0,
+            cp if cp > count as isize => count as usize,
+            cp => cp as usize,
+        };
+        let bottom = Cards(self.0.split_off(cutpoint));
+        (self.clone(), bottom)
     }
 }
 
@@ -201,10 +208,13 @@ impl fmt::Display for Cards {
     }  
 }
 
-
-
 fn main() {
     println!("Hello World!");
-    let deck = Cards::new(DeckStyle::Jokers, 1);
-    println!("New deck: {deck}");    
+    let mut deck = Cards::new(DeckStyle::Jokers, 1);
+    println!("New deck: {deck}");
+    let mut top = Cards::default();
+    let mut bottom = Cards::default();    
+    (top, bottom) = deck.cut(NoiseLevel::new(5).unwrap());
+    println!("After cut top: {top}");
+    println!("After cut bottom: {bottom}");
 }

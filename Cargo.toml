@@ -6,4 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bounded-integer = "0.5.7"
+bounded-integer = { version = "0.5.7", features = ["std", "types"] }
+rand = "0.8.5"
+rand_distr = "0.4.3"
