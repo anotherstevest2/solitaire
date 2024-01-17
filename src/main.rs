@@ -1,4 +1,5 @@
 use std::fmt;
+use std::collections::HashMap;
 use bounded_integer::BoundedU8;
 use rand_distr::{Normal, Distribution};
 use rand::Rng;
@@ -60,7 +61,7 @@ const NEW_DECK_ARR: [Card; 54] = [
     Card::Joker(JokerId::A),
 ];
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 enum Suit {
     Club,
     Diamond,
@@ -79,7 +80,7 @@ impl fmt::Display for Suit {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 enum JokerId{
     A,
     B,
@@ -94,7 +95,7 @@ impl fmt::Display for JokerId {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 enum Card {
     Ace(Suit),
     Two(Suit),
@@ -239,9 +240,9 @@ impl Cards {
 
     fn look_at(&self, index: usize) -> Result<&Card, String> {
         if index >= self.0.len() {
-            Err("Index beyond end of Cards");
+            return Err("Index beyond end of Cards".to_string());
         }
-        &self.0[index]
+        Ok(&self.0[index])
     }
 }
 
@@ -346,6 +347,22 @@ fn main() {
     println!("{}", deck);
     println!("");
 
-    println!("The bottom card is: {}", deck.look_at(deck.0.len()-1));
+    println!("The bottom card is: {}", deck.look_at(deck.0.len()-1).unwrap());
     // Need to make a length method so as to not expose Cards internals
+
+    // Establish value table for the solitaire cypher
+    let mut values = HashMap::new();
+    let new_deck = Cards::new(DeckStyle::Jokers, 1);
+    // Also, find the fix so that the 0 isn't required here, i.e. implement iterater trade for Cards
+    for (i, card) in new_deck.0.iter().enumerate() {
+        values.insert(*card, i + 1);  // values not zero based
+    }
+
+    // fixup the last jokers value
+    values.entry(Card::Joker(JokerId::B)).and_modify(|value| *value = 53);
+
+    // println!("");
+    // println!("The value of FB is {}", values.get(&Card::Joker(JokerId::B)).unwrap());
+
+    println!("The value of the bottom card is: {}", values.get(&deck.look_at(deck.0.len()-1).unwrap()).unwrap());
 }
