@@ -210,6 +210,28 @@ impl Cards {
         self.0.reverse();
         self
     }
+
+    fn move_card(mut self, card: Card, position_change: isize) -> Result<Cards, String> {
+        let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
+        let position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
+
+        let card = self.0.remove(position_start);
+        self.0.insert(position_end, card);
+
+        Ok(self)
+    }
+
+    fn draw_count(&mut self, count: usize) -> Result<Cards, String> {
+        if count > self.0.len() {
+            return Err("Can not draw more than are available".to_string());
+        }
+        Ok(Cards(self.0.drain(0..count).collect()))
+    }
+
+    fn draw_till(&mut self, card: Card) -> Result<Cards, String> {
+        let count = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
+        Ok(self.draw_count(count).unwrap())
+    }
 }
 
 
@@ -265,9 +287,7 @@ fn main() {
     let deck = deck.reverse();
     println!("Reversed deck (or, if you like, orginal deck now face up): {deck}");
     println!("");
-    let mut top = Cards::default();
-    let mut bottom = Cards::default();    
-    TwoStacks(top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
+    let TwoStacks(top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
     println!("");
     println!("After cut bottom: {bottom}");
@@ -281,5 +301,13 @@ fn main() {
     let deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
     println!("after 10 more riffles:");
     println!("{}", deck);
-
+    println!("");
+    let deck = deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
+    println!("after moving Joker A (aka \"FA\") down one");
+    println!("{}", deck);
+    println!("");
+    let deck = deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
+    println!("after moving Joker B (aka \"FB\") down one");
+    println!("{}", deck);
+    println!("");
 }
