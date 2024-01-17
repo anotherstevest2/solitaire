@@ -236,6 +236,13 @@ impl Cards {
     fn append(&mut self, mut cards: Cards) {
         self.0.append(&mut cards.0);
     }
+
+    fn look_at(&self, index: usize) -> Result<&Card, String> {
+        if index >= self.0.len() {
+            Err("Index beyond end of Cards");
+        }
+        &self.0[index]
+    }
 }
 
 
@@ -338,4 +345,7 @@ fn main() {
     println!("after swapping ends around the jokers (aka \"FA\", \"FB\")");
     println!("{}", deck);
     println!("");
+
+    println!("The bottom card is: {}", deck.look_at(deck.0.len()-1));
+    // Need to make a length method so as to not expose Cards internals
 }
