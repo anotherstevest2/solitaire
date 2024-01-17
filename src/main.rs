@@ -232,6 +232,10 @@ impl Cards {
         let count = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
         Ok(self.draw_count(count).unwrap())
     }
+
+    fn append(&mut self, cards: Cards) {
+        self.0.append(cards.0);
+    }
 }
 
 
@@ -306,8 +310,26 @@ fn main() {
     println!("after moving Joker A (aka \"FA\") down one");
     println!("{}", deck);
     println!("");
-    let deck = deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
+    let mut deck = deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
     println!("after moving Joker B (aka \"FB\") down one");
+    println!("{}", deck);
+    println!("");
+
+    let mut above_fa = deck.draw_till(Card::FA);
+    if let Ok(above_both) = above_fa.draw_till(Card::FB) {
+        // Order is: above_both, FB above_fa, FA deck
+        above_fa.draw_count(1);
+        deck.draw_count(1);
+        // swap top and bottom leaving fools in same relative positions
+        deck.append(Cards(Card::FB).append(above_fa).append(Cards(Card::FA)),append(above_both));
+    } else if let Ok(mut above_fb) = deck.draw_till(Card::FB) {
+        // Order is: above_fa, FA above_fb, FB deck
+        above_fb.draw_count(1);
+        deck.draw_count(1);
+        // swap top and bottom leaving fools in same relative positions
+        deck.append(Cards(Card::FA)).append(above_fb).append(Cards(Card::FB)).append(above_fb);
+    }   
+    println!("after swapping ends around the jokers (aka \"FA\", \"FB\")"));
     println!("{}", deck);
     println!("");
 }
