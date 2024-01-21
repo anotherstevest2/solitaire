@@ -294,14 +294,27 @@ impl TwoStacks {
 }
 
 trait Value {
-    fn value(&self) -> LetterValue;
+    fn value(&self) -> CardValue;
 }
 
 // ----------------- TODO - Cards crate above, Solitaire Cypher Crate Below ----------------------
-
+// When refactoring - consider doing newtype pattern on Bounded variables so that from can be
+// defined.
 
 type UpperLetter = BoundedU8<65, 90>;
+
+fn upper_into_let_value(ul: UpperLetter) -> LetterValue {
+    LetterValue::new((ul - 64).into()).unwrap()
+}
+
 type LetterValue = BoundedU8<1, 26>;
+
+
+type CardValue = BoundedU8<1, 53>;
+
+fn card_val_into_let_val(cv: CardValue) -> LetterValue {
+    LetterValue::new(((cv - 1) % 26 + 1).into()).unwrap()
+}
 struct PlainText (Vec<UpperLetter>);
 
 impl PlainText {
@@ -324,22 +337,24 @@ impl KeyStream {
     }
 }
 
-static VALUES: OnceCell<HashMap<Card, LetterValue>> = OnceCell::new();
+static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 
 impl Value for Card {
-    fn value(&self) -> LetterValue {
+    fn value(&self) -> CardValue {
         *VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
     }
 }
 
-fn value_init() -> HashMap<Card, LetterValue> {
+fn value_init() -> HashMap<Card, CardValue> {
     let mut values = HashMap::new();
-    let new_deck = Cards::new(DeckStyle::Jokers, 1);
+    let new_deck = Cards::new(DeckStyle::Jokers, 1); // new deck w/ Joker -> 54 cards
     for (i, card) in new_deck.0.iter().enumerate() {
-        values.insert(*card, LetterValue::new((i + 1) as u8).unwrap());  // values not zero based
+        if i < 53 {  // have to skip last card as it will generate illegal value
+            values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
+        }
     }
-    // fixup the last jokers value
-    values.entry(Card::Joker(JokerId::B)).and_modify(|value| *value = LetterValue::new(53u8).unwrap());
+    // add the last joker with same (53) value as the other one
+    values.insert(Card::Joker(JokerId::B), CardValue::new(53u8).unwrap());
     values
 }
 
@@ -402,7 +417,7 @@ fn main() {
             if  **output_card_candidate != Card::Joker(JokerId::A)
             && **output_card_candidate != Card::Joker(JokerId::B) {
                 key_stream.0
-                .push((*output_card_candidate).value());
+                .push(card_val_into_let_val((*output_card_candidate).value()));
             }
         }
         key_stream
