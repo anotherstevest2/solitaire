@@ -3,6 +3,10 @@ use std::collections::HashMap;
 use bounded_integer::BoundedU8;
 use rand_distr::{Normal, Distribution};
 use rand::Rng;
+use once_cell::sync::OnceCell;
+
+// TODO - import and refactor to use anyhow for error handling;
+// TODO - define deref trait so that we don't need the .0 in cards.0.len() etc.
 
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
@@ -61,7 +65,7 @@ const NEW_DECK_ARR: [Card; 54] = [
     Card::Joker(JokerId::A),
 ];
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 enum Suit {
     Club,
     Diamond,
@@ -80,7 +84,7 @@ impl fmt::Display for Suit {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 enum JokerId{
     A,
     B,
@@ -95,7 +99,7 @@ impl fmt::Display for JokerId {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 enum Card {
     Ace(Suit),
     Two(Suit),
@@ -173,6 +177,14 @@ impl Cards {
         Cards(deck)
     }
 
+    fn cut(mut self, index: usize) -> TwoStacks {
+        if index  >= self.0.len() {
+            panic!("indexed past the end of Cards!");
+        }
+        let bottom = Cards(self.0.split_off(index));
+        TwoStacks(self.clone(), bottom)
+    }
+
     // noise == 0 => exact cut after first half(even count) or
     // 50/50 chance of the middle card (out count) in the first or
     // second half of the cut.
@@ -180,29 +192,27 @@ impl Cards {
     // distribution with mean at the center point and Variance approximately
     // smoothly varying from 1 to the number of cards (i.e. Standard Deviation
     // = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
-    // the cutpoint is the index of the card after which we will cut - 
-    // A cutpoint of 0 means the whole goes after the cut
-    fn cut(mut self, noise: NoiseLevel) -> TwoStacks {
+    // the cut point is the index of the card after which we will cut -
+    // A cut point of 0 means the whole goes after the cut
+    fn cut_with_noise(self, noise: NoiseLevel) -> TwoStacks {
         let count: f64 = self.0.len() as f64;
         let noise: i16 = noise.into();
         let noise: f64 = noise.into();
         let sd = 1.0 + (noise - 1.0) * (f64::sqrt(count) - 1.0)/9.0;
         let normal = Normal::new(count/2.0, sd).unwrap();
-        let cutpoint = normal.sample(&mut rand::thread_rng());
-        let cutpoint = cutpoint as isize;
-        let cutpoint = match cutpoint {
+        let cut_point = normal.sample(&mut rand::thread_rng());
+        let cut_point = cut_point as isize;
+        let cut_point = match cut_point {
             cp if cp < 0 => 0,
             cp if cp > count as isize => count as usize,
             cp => cp as usize,
         };
-        let bottom = Cards(self.0.split_off(cutpoint));
-        TwoStacks(self.clone(), bottom)
+        self.cut(cut_point)
     }
-
 
     fn shuffle(mut self, riffle_count: usize, noise: NoiseLevel) -> Cards {
         for _ in 0..riffle_count {
-            self = self.cut(noise).merge();
+            self = self.cut_with_noise(noise).merge();
         }
         self
     }
@@ -212,14 +222,14 @@ impl Cards {
         self
     }
 
-    fn move_card(mut self, card: Card, position_change: isize) -> Result<Cards, String> {
+    fn move_card(&mut self, card: Card, position_change: isize) -> Result<Cards, String> {
         let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
         let position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         let card = self.0.remove(position_start);
         self.0.insert(position_end, card);
 
-        Ok(self)
+        Ok(self.clone())
     }
 
     fn draw_count(&mut self, count: usize) -> Result<Cards, String> {
@@ -234,8 +244,9 @@ impl Cards {
         Ok(self.draw_count(count).unwrap())
     }
 
-    fn append(&mut self, mut cards: Cards) {
+    fn append(&mut self, mut cards: Cards) -> &mut Self {
         self.0.append(&mut cards.0);
+        self
     }
 
     fn look_at(&self, index: usize) -> Result<&Card, String> {
@@ -264,64 +275,168 @@ impl TwoStacks {
         let mut rng = rand::thread_rng();
         let mut cards = Cards::default();
         for _ in 0..(&top.0.len() + &bottom.0.len()) {
+            let first_try: &mut Vec<Card>;
+            let then_try: &mut Vec<Card>;
             if rng.gen() {
-                match top.0.pop() {
-                    Some(card) => cards.0.push(card),
-                    None => {
-                        match bottom.0.pop() {
-                            Some(card) => cards.0.push(card),
-                            None => panic!("Must have loop counter wrong!"),
-                        }
-                    }
-                }
-            }  else {
-                match bottom.0.pop() {
-                    Some(card) => cards.0.push(card),
-                    None => {
-                        match top.0.pop() {
-                            Some(card) => cards.0.push(card),
-                            None => panic!("Must have loop counter wrong!"),
-                        }
-                    }
-                }
+                first_try = &mut top.0;
+                then_try = &mut bottom.0;
+            } else {
+                first_try = &mut bottom.0;
+                then_try = &mut top.0;
             }
 
+            if let Some(card) = first_try.pop() {cards.0.push(card)}
+            else if let Some(card) = then_try.pop() {cards.0.push(card)}
+            else {panic!("Must have loop counter wrong!");}
         }
         cards
     }
 }
 
+trait Value {
+    fn value(&self) -> LetterValue;
+}
+
+// ----------------- TODO - Cards crate above, Solitaire Cypher Crate Below ----------------------
+
+
+type UpperLetter = BoundedU8<65, 90>;
+type LetterValue = BoundedU8<1, 26>;
+struct PlainText (Vec<UpperLetter>);
+
+impl PlainText {
+    fn new() -> PlainText {
+        PlainText(Vec::new())
+    }
+}
+struct CypherText (Vec<UpperLetter>);
+impl CypherText {
+    fn new() -> CypherText {
+        CypherText(Vec::new())
+    }
+}
+
+struct KeyStream (Vec<LetterValue>);
+
+impl KeyStream {
+    fn new() -> KeyStream {
+        KeyStream(Vec::new())
+    }
+}
+
+static VALUES: OnceCell<HashMap<Card, LetterValue>> = OnceCell::new();
+
+impl Value for Card {
+    fn value(&self) -> LetterValue {
+        *VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
+    }
+}
+
+fn value_init() -> HashMap<Card, LetterValue> {
+    let mut values = HashMap::new();
+    let new_deck = Cards::new(DeckStyle::Jokers, 1);
+    for (i, card) in new_deck.0.iter().enumerate() {
+        values.insert(*card, LetterValue::new((i + 1) as u8).unwrap());  // values not zero based
+    }
+    // fixup the last jokers value
+    values.entry(Card::Joker(JokerId::B)).and_modify(|value| *value = LetterValue::new(53u8).unwrap());
+    values
+}
+
 fn main() {
-    println!("Hello World!");
+    VALUES.get_or_init(|| {value_init()});
+
+    // key_deck is interpreted as *face-up*
+    fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
+        let mut key_deck = key_deck;
+        let mut key_stream = KeyStream::new();
+        while key_stream.0.len() < key_length {
+            // A Joker move
+            let mut key_deck = key_deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
+            // B Joker move
+            key_deck = key_deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
+
+            // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
+            // and swap top with bottom leaving Jokers in place
+            let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
+            if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
+                // Order is: above_both, FB above_fa, FA key_deck
+                let fb = above_fa.draw_count(1).unwrap();
+                let fa = key_deck.draw_count(1).unwrap();
+                // swap top and bottom leaving fools in same relative positions
+                key_deck.append(fb);
+                key_deck.append(above_fa);
+                key_deck.append(fa);
+                key_deck.append(above_both);
+            } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
+                // Order is: above_fa, FA above_fb, FB key_deck
+                let fa = above_fb.draw_count(1).unwrap();
+                let fb = key_deck.draw_count(1).unwrap();
+                // swap top and bottom leaving fools in same relative positions
+                key_deck.append(fa);
+                key_deck.append(above_fb);
+                key_deck.append(fb);
+                key_deck.append(above_fa);
+            }
+
+            // Count cut based on the value of the bottom card leaving the bottom card at the bottom
+            let bottom_card_value = &key_deck.
+                look_at(key_deck.0.len() - 1)
+                .unwrap()
+                .value();
+            let TwoStacks(top, mut bottom) = key_deck.cut(bottom_card_value.checked_add(1).unwrap().into());
+            let bottom_card = bottom.0
+                .pop()
+                .unwrap();
+            let key_deck = bottom
+                .append(top)
+                .append(Cards(vec!(bottom_card)));
+
+            // Find output card, or Joker
+            let top_card_value = &key_deck
+                .look_at(1)
+                .unwrap()
+                .value();
+            let output_card_candidate = &key_deck
+                .look_at(top_card_value.checked_add(1).unwrap().into()).unwrap();
+            if  **output_card_candidate != Card::Joker(JokerId::A)
+            && **output_card_candidate != Card::Joker(JokerId::B) {
+                key_stream.0
+                .push((*output_card_candidate).value());
+            }
+        }
+        key_stream
+    }
+
     let deck = Cards::new(DeckStyle::Jokers, 1);
     println!("New deck (face down): {deck}");
-    println!("");
+    println!();
     let deck = deck.reverse();
-    println!("Reversed deck (or, if you like, orginal deck now face up): {deck}");
-    println!("");
-    let TwoStacks(top, bottom) = deck.cut(NoiseLevel::new(10).unwrap());
+    println!("Reversed deck (or, for our purposes, original deck now face up): {deck}");
+    println!();
+    let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
-    println!("");
+    println!();
     println!("After cut bottom: {bottom}");
-    println!("");
+    println!();
     println!("Cut point: {}", top.0.len());
-    println!("");
+    println!();
     let deck = TwoStacks(top, bottom).merge();
     println!("after first riffle:");
     println!("{}", deck);
-    println!("");
-    let deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
+    println!();
+    let mut deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
     println!("after 10 more riffles:");
     println!("{}", deck);
-    println!("");
-    let deck = deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
+    println!();
+    deck = deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
     println!("after moving Joker A (aka \"FA\") down one");
     println!("{}", deck);
-    println!("");
-    let mut deck = deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
+    println!();
+    deck = deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
     println!("after moving Joker B (aka \"FB\") down one");
     println!("{}", deck);
-    println!("");
+    println!();
 
     let mut above_fa = deck.draw_till(Card::Joker(JokerId::A)).unwrap();
     if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
@@ -345,24 +460,31 @@ fn main() {
     }   
     println!("after swapping ends around the jokers (aka \"FA\", \"FB\")");
     println!("{}", deck);
-    println!("");
+    println!();
 
     println!("The bottom card is: {}", deck.look_at(deck.0.len()-1).unwrap());
     // Need to make a length method so as to not expose Cards internals
 
-    // Establish value table for the solitaire cypher
-    let mut values = HashMap::new();
-    let new_deck = Cards::new(DeckStyle::Jokers, 1);
-    // Also, find the fix so that the 0 isn't required here, i.e. implement iterater trade for Cards
-    for (i, card) in new_deck.0.iter().enumerate() {
-        values.insert(*card, i + 1);  // values not zero based
-    }
-
-    // fixup the last jokers value
-    values.entry(Card::Joker(JokerId::B)).and_modify(|value| *value = 53);
-
     // println!("");
     // println!("The value of FB is {}", values.get(&Card::Joker(JokerId::B)).unwrap());
 
-    println!("The value of the bottom card is: {}", values.get(&deck.look_at(deck.0.len()-1).unwrap()).unwrap());
+    // let bottom_card_value = values.get(&deck.look_at(deck.0.len()-1).unwrap()).unwrap();
+    let bottom_card_value = &deck.look_at(deck.0.len()-1).unwrap().value();
+    println!("The value of the bottom card is: {}", bottom_card_value);
+
+    let TwoStacks(top, mut bottom) = deck.cut(bottom_card_value.checked_add(1).unwrap().into());
+
+    let bottom_card = bottom.0.pop().unwrap();
+    let deck = bottom.append(top).append(Cards(vec!(bottom_card)));
+
+    // let top_card_value = values.get(&deck.look_at(1).unwrap()).unwrap();
+    let top_card_value = &deck.look_at(1).unwrap().value();
+    let output_card_candidate = &deck.look_at(top_card_value.checked_add(1).unwrap().into()).unwrap();
+    let output_card: Option<&Card>;
+    if  **output_card_candidate != Card::Joker(JokerId::A) && **output_card_candidate != Card::Joker(JokerId::B) {
+        output_card = Some(*output_card_candidate);
+    } else { output_card = None; }
+
+    println!("output_card: {:?}", output_card);
+
 }
