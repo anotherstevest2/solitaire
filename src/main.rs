@@ -7,6 +7,15 @@ use once_cell::sync::OnceCell;
 
 // TODO - import and refactor to use anyhow for error handling;
 // TODO - define deref trait so that we don't need the .0 in cards.0.len() etc.
+//        Umm... Cancel the above, for predictability reasons (per the API guidance)
+//        deref should *only* by defined for smart pointers.  Instead, the desired
+//        methods (len, push, pop etc...) should be defined for the newtype
+//        seems non-ideal... or, just keep the destructuring/.0 bit in the usage.
+//        so: in the crate (where visible via an api), implement all the functions
+//        whereas internally, keep the .0 for the new types which don't appear in
+//        the api.
+//        Another Idea:  Create a trait for NewtypeVec which unwraps the newtype to make
+//        All of the methods that work on a vector, work on the newtype.
 
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
@@ -303,7 +312,7 @@ trait Value {
 
 type UpperLetter = BoundedU8<65, 90>;
 
-fn upper_into_let_value(ul: UpperLetter) -> LetterValue {
+fn upper_into_let_value(ul: &UpperLetter) -> LetterValue {
     LetterValue::new((ul - 64).into()).unwrap()
 }
 
@@ -326,6 +335,14 @@ struct CypherText (Vec<UpperLetter>);
 impl CypherText {
     fn new() -> CypherText {
         CypherText(Vec::new())
+    }
+}
+
+struct Passphrase (Vec<UpperLetter>);
+
+impl Passphrase {
+    fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
+        self.0.iter()
     }
 }
 
@@ -361,51 +378,77 @@ fn value_init() -> HashMap<Card, CardValue> {
 fn main() {
     VALUES.get_or_init(|| {value_init()});
 
+    fn next_deck_state(mut key_deck: Cards) -> Cards {
+        // A Joker move
+        let mut key_deck = key_deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
+        // B Joker move
+        key_deck = key_deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
+
+        // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
+        // and swap top with bottom leaving Jokers in place
+        let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
+        if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
+            // Order is: above_both, FB above_fa, FA key_deck
+            let fb = above_fa.draw_count(1).unwrap();
+            let fa = key_deck.draw_count(1).unwrap();
+            // swap top and bottom leaving fools in same relative positions
+            key_deck.append(fb);
+            key_deck.append(above_fa);
+            key_deck.append(fa);
+            key_deck.append(above_both);
+        } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
+            // Order is: above_fa, FA above_fb, FB key_deck
+            let fa = above_fb.draw_count(1).unwrap();
+            let fb = key_deck.draw_count(1).unwrap();
+            // swap top and bottom leaving fools in same relative positions
+            key_deck.append(fa);
+            key_deck.append(above_fb);
+            key_deck.append(fb);
+            key_deck.append(above_fa);
+        }
+
+        // Count cut based on the value of the bottom card leaving the bottom card at the bottom
+        let bottom_card_value = &key_deck.
+            look_at(key_deck.0.len() - 1)
+            .unwrap()
+            .value();
+        let TwoStacks(top, mut bottom) = key_deck.cut(bottom_card_value.checked_add(1).unwrap().into());
+        let bottom_card = bottom.0
+            .pop()
+            .unwrap();
+        let key_deck = bottom
+            .append(top)
+            .append(Cards(vec!(bottom_card)));
+        key_deck.clone()
+    }
+
+    fn key_deck_from_passphrase(passphrase: Passphrase) -> Cards {
+        let deck = Cards::new(DeckStyle::Jokers, 1);
+        let mut deck = deck.reverse();
+
+        for letter in passphrase.iter() {
+            deck = next_deck_state(deck);
+
+            // count cut at phase phrase value, maintain bottom card
+            let letter_value = upper_into_let_value(letter);
+            let TwoStacks(top, mut bottom) = deck.clone().cut(letter_value.checked_add(1).unwrap().into());
+            let bottom_card = bottom.0
+                .pop()
+                .unwrap();
+            deck = bottom
+                .append(top)
+                .append(Cards(vec!(bottom_card)))
+                .clone();
+        }
+        deck
+    }
+
     // key_deck is interpreted as *face-up*
     fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
         let mut key_deck = key_deck;
         let mut key_stream = KeyStream::new();
         while key_stream.0.len() < key_length {
-            // A Joker move
-            let mut key_deck = key_deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
-            // B Joker move
-            key_deck = key_deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
-
-            // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
-            // and swap top with bottom leaving Jokers in place
-            let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
-            if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
-                // Order is: above_both, FB above_fa, FA key_deck
-                let fb = above_fa.draw_count(1).unwrap();
-                let fa = key_deck.draw_count(1).unwrap();
-                // swap top and bottom leaving fools in same relative positions
-                key_deck.append(fb);
-                key_deck.append(above_fa);
-                key_deck.append(fa);
-                key_deck.append(above_both);
-            } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
-                // Order is: above_fa, FA above_fb, FB key_deck
-                let fa = above_fb.draw_count(1).unwrap();
-                let fb = key_deck.draw_count(1).unwrap();
-                // swap top and bottom leaving fools in same relative positions
-                key_deck.append(fa);
-                key_deck.append(above_fb);
-                key_deck.append(fb);
-                key_deck.append(above_fa);
-            }
-
-            // Count cut based on the value of the bottom card leaving the bottom card at the bottom
-            let bottom_card_value = &key_deck.
-                look_at(key_deck.0.len() - 1)
-                .unwrap()
-                .value();
-            let TwoStacks(top, mut bottom) = key_deck.cut(bottom_card_value.checked_add(1).unwrap().into());
-            let bottom_card = bottom.0
-                .pop()
-                .unwrap();
-            let key_deck = bottom
-                .append(top)
-                .append(Cards(vec!(bottom_card)));
+            key_deck = next_deck_state(key_deck);
 
             // Find output card, or Joker
             let top_card_value = &key_deck
@@ -444,62 +487,8 @@ fn main() {
     println!("after 10 more riffles:");
     println!("{}", deck);
     println!();
-    deck = deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
-    println!("after moving Joker A (aka \"FA\") down one");
-    println!("{}", deck);
-    println!();
-    deck = deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
-    println!("after moving Joker B (aka \"FB\") down one");
-    println!("{}", deck);
-    println!();
+    let mut saved_deck = deck.clone();
 
-    let mut above_fa = deck.draw_till(Card::Joker(JokerId::A)).unwrap();
-    if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
-        // Order is: above_both, FB above_fa, FA deck
-        let fb = above_fa.draw_count(1).unwrap();
-        let fa = deck.draw_count(1).unwrap();
-        // swap top and bottom leaving fools in same relative positions
-        deck.append(fb);
-        deck.append(above_fa);
-        deck.append(fa);
-        deck.append(above_both);
-    } else if let Ok(mut above_fb) = deck.draw_till(Card::Joker(JokerId::B)) {
-        // Order is: above_fa, FA above_fb, FB deck
-        let fa = above_fb.draw_count(1).unwrap();
-        let fb = deck.draw_count(1).unwrap();
-        // swap top and bottom leaving fools in same relative positions
-        deck.append(fa);
-        deck.append(above_fb);
-        deck.append(fb);
-        deck.append(above_fa);
-    }   
-    println!("after swapping ends around the jokers (aka \"FA\", \"FB\")");
-    println!("{}", deck);
-    println!();
 
-    println!("The bottom card is: {}", deck.look_at(deck.0.len()-1).unwrap());
-    // Need to make a length method so as to not expose Cards internals
-
-    // println!("");
-    // println!("The value of FB is {}", values.get(&Card::Joker(JokerId::B)).unwrap());
-
-    // let bottom_card_value = values.get(&deck.look_at(deck.0.len()-1).unwrap()).unwrap();
-    let bottom_card_value = &deck.look_at(deck.0.len()-1).unwrap().value();
-    println!("The value of the bottom card is: {}", bottom_card_value);
-
-    let TwoStacks(top, mut bottom) = deck.cut(bottom_card_value.checked_add(1).unwrap().into());
-
-    let bottom_card = bottom.0.pop().unwrap();
-    let deck = bottom.append(top).append(Cards(vec!(bottom_card)));
-
-    // let top_card_value = values.get(&deck.look_at(1).unwrap()).unwrap();
-    let top_card_value = &deck.look_at(1).unwrap().value();
-    let output_card_candidate = &deck.look_at(top_card_value.checked_add(1).unwrap().into()).unwrap();
-    let output_card: Option<&Card>;
-    if  **output_card_candidate != Card::Joker(JokerId::A) && **output_card_candidate != Card::Joker(JokerId::B) {
-        output_card = Some(*output_card_candidate);
-    } else { output_card = None; }
-
-    println!("output_card: {:?}", output_card);
 
 }
