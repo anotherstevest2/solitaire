@@ -312,8 +312,12 @@ trait Value {
 
 type UpperLetter = BoundedU8<65, 90>;
 
-fn upper_into_let_value(ul: &UpperLetter) -> LetterValue {
+fn letter_into_value(ul: &UpperLetter) -> LetterValue {
     LetterValue::new((ul - 64).into()).unwrap()
+}
+
+fn value_into_letter(lv: &LetterValue) -> UpperLetter {
+    UpperLetter::new((lv + 64).into()).unwrap()
 }
 
 type LetterValue = BoundedU8<1, 26>;
@@ -430,7 +434,7 @@ fn main() {
             deck = next_deck_state(deck);
 
             // count cut at phase phrase value, maintain bottom card
-            let letter_value = upper_into_let_value(letter);
+            let letter_value = letter_into_value(letter);
             let TwoStacks(top, mut bottom) = deck.clone().cut(letter_value.checked_add(1).unwrap().into());
             let bottom_card = bottom.0
                 .pop()
@@ -447,6 +451,8 @@ fn main() {
     fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
         let mut key_deck = key_deck;
         let mut key_stream = KeyStream::new();
+        // Ensure key length is a multiple of 5 (as is tradition) so the cypher text will be also
+        let key_length= (key_length + 5) + 5;
         while key_stream.0.len() < key_length {
             key_deck = next_deck_state(key_deck);
 
@@ -464,6 +470,33 @@ fn main() {
             }
         }
         key_stream
+    }
+
+    fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
+        if pt.0.len() > ks.0.len() {
+            panic!("KeyStream not long enough");
+        }
+
+        let mut ct: CypherText = CypherText(vec!());
+        for (i, k) in ks.0.iter().enumerate() {
+            let pt_value = letter_into_value(&pt.0[i]);
+            ct.0.push(value_into_letter(&((pt_value + k) % 26)));
+        }
+        ct
+    }
+
+    fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
+
+        if ct.0.len() > ks.0.len() {
+            panic!("KeyStream not long enough");
+        }
+
+        let mut pt: PlainText = PlainText(vec!());
+        for (i, k) in ks.0.iter().enumerate() {
+            let ct_value = letter_into_value(&ct.0[i]);
+            pt.0.push(value_into_letter(&((ct_value - k).rem_euclid(26))));
+        }
+        pt
     }
 
     let deck = Cards::new(DeckStyle::Jokers, 1);
@@ -487,7 +520,16 @@ fn main() {
     println!("after 10 more riffles:");
     println!("{}", deck);
     println!();
-    let mut saved_deck = deck.clone();
+
+    let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+    let mut spare_new_deck = new_deck.clone();
+
+    let pt = PlainText(vec!("AAAAAAAAAAAAAAA".bytes()));
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+
+    println!("key: <null key>, pt: {:?}, ct: {:?}", pt, ct);
+
 
 
 
