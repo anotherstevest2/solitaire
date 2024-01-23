@@ -1,5 +1,8 @@
 use std::fmt;
 use std::collections::HashMap;
+use std::convert::Infallible;
+use std::str::FromStr;
+use std::string::ParseError;
 use bounded_integer::BoundedU8;
 use rand_distr::{Normal, Distribution};
 use rand::Rng;
@@ -313,11 +316,24 @@ trait Value {
 type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
-    LetterValue::new((ul - 64).into()).unwrap()
+    println!("Upper Letter: {:?}", *ul);
+    // LetterValue::new((*ul)
+    //     .checked_sub(64)
+    //     .expect("Called  with ul: {ul}")
+    //     .into())
+    //     .unwrap()
+    let unwrapped_val: u8 = (*ul).into();
+    LetterValue::new(unwrapped_val - 64).unwrap()
 }
 
 fn value_into_letter(lv: &LetterValue) -> UpperLetter {
-    UpperLetter::new((lv + 64).into()).unwrap()
+    // UpperLetter::new((*lv)
+    //     .checked_add(64)
+    //     .unwrap()
+    //     .into())
+    //     .unwrap()
+    let unwrapped_val: u8 = (*lv).into();
+    UpperLetter::new(unwrapped_val + 64).unwrap()
 }
 
 type LetterValue = BoundedU8<1, 26>;
@@ -325,9 +341,17 @@ type LetterValue = BoundedU8<1, 26>;
 
 type CardValue = BoundedU8<1, 53>;
 
-fn card_val_into_let_val(cv: CardValue) -> LetterValue {
-    LetterValue::new(((cv - 1) % 26 + 1).into()).unwrap()
+fn card_val_into_position(cv: &CardValue) -> CardPosition {
+    CardPosition::new(u8::from(*cv)).unwrap()
 }
+
+fn card_val_into_let_val(cv: CardValue) -> LetterValue {
+    LetterValue::new((u8::from(cv) - 1) % 26 + 1).unwrap()
+}
+
+type CardPosition = BoundedU8<1, 54>;
+
+#[derive(Debug)]
 struct PlainText (Vec<UpperLetter>);
 
 impl PlainText {
@@ -335,6 +359,22 @@ impl PlainText {
         PlainText(Vec::new())
     }
 }
+
+impl FromStr for PlainText {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut pt = PlainText(Vec::new());
+        for letter in s.bytes() {
+            if let l = UpperLetter::new(letter).unwrap() {
+                pt.0.push(l);
+            }
+        }
+        Ok(pt)
+    }
+}
+
+#[derive(Debug)]
 struct CypherText (Vec<UpperLetter>);
 impl CypherText {
     fn new() -> CypherText {
@@ -342,11 +382,40 @@ impl CypherText {
     }
 }
 
+impl FromStr for CypherText {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut ct = CypherText(Vec::new());
+        for letter in s.bytes() {
+            if let l = UpperLetter::new(letter).unwrap() {
+                ct.0.push(l);
+            }
+        }
+        Ok(ct)
+    }
+}
+
+#[derive(Debug)]
 struct Passphrase (Vec<UpperLetter>);
 
 impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
+    }
+}
+
+impl FromStr for Passphrase {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut pp = Passphrase(Vec::new());
+        for letter in s.bytes() {
+            if let l = UpperLetter::new(letter).unwrap() {
+                pp.0.push(l);
+            }
+        }
+        Ok(pp)
     }
 }
 
@@ -374,8 +443,8 @@ fn value_init() -> HashMap<Card, CardValue> {
             values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
         }
     }
-    // add the last joker with same (53) value as the other one
-    values.insert(Card::Joker(JokerId::B), CardValue::new(53u8).unwrap());
+    // add the last joker (order is B then A) with same (53) value as the other one
+    values.insert(Card::Joker(JokerId::A), CardValue::new(53u8).unwrap());
     values
 }
 
@@ -416,7 +485,8 @@ fn main() {
             look_at(key_deck.0.len() - 1)
             .unwrap()
             .value();
-        let TwoStacks(top, mut bottom) = key_deck.cut(bottom_card_value.checked_add(1).unwrap().into());
+        let TwoStacks(top, mut bottom) = key_deck
+                .cut(card_val_into_let_val(*bottom_card_value).into());
         let bottom_card = bottom.0
             .pop()
             .unwrap();
@@ -452,17 +522,25 @@ fn main() {
         let mut key_deck = key_deck;
         let mut key_stream = KeyStream::new();
         // Ensure key length is a multiple of 5 (as is tradition) so the cypher text will be also
-        let key_length= (key_length + 5) + 5;
+        let key_length= ((key_length + 4) / 5) * 5; // integer divide to drop remainder
+        println!("key_length: {key_length}");
         while key_stream.0.len() < key_length {
             key_deck = next_deck_state(key_deck);
 
             // Find output card, or Joker
+            println!("top card: {:?}", &key_deck.look_at(0).unwrap());
             let top_card_value = &key_deck
-                .look_at(1)
+                .look_at(0)
                 .unwrap()
                 .value();
+            // hidden canceling adjustments: top_card_value [1..53] so subtract 1 to make it
+            // an index range of [0..52] and then add 1 to look at card *after* the one indexed
+            // by the top card value for a net adjustment of 0
+            let output_card_candidate_position = card_val_into_position(top_card_value);
             let output_card_candidate = &key_deck
-                .look_at(top_card_value.checked_add(1).unwrap().into()).unwrap();
+                .look_at(output_card_candidate_position
+                    .into())
+                .unwrap();
             if  **output_card_candidate != Card::Joker(JokerId::A)
             && **output_card_candidate != Card::Joker(JokerId::B) {
                 key_stream.0
@@ -524,11 +602,12 @@ fn main() {
     let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
     let mut spare_new_deck = new_deck.clone();
 
-    let pt = PlainText(vec!("AAAAAAAAAAAAAAA".bytes()));
+    let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
     let ks = get_key_stream(new_deck, pt.0.len());
-    let ct = encrypt(&pt, &ks);
+    println!("key: <null key>, pt: {:?}, ks: {:?}", pt, ks.0);
 
-    println!("key: <null key>, pt: {:?}, ct: {:?}", pt, ct);
+    let ct = encrypt(&pt, &ks);
+    println!("ct: {:?}", ct);
 
 
 
