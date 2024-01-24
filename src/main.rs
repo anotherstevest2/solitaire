@@ -623,7 +623,7 @@ fn main() {
         for (i, k) in ks.0.iter().enumerate() {
             let pt_value = letter_into_value(&pt.0[i]);
             // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
-            ct.0.push(value_into_letter(&(LetterValue::new(((u8::from((pt_value)) + k - 1) % 26) + 1).unwrap())));
+            ct.0.push(value_into_letter(&(LetterValue::new(((u8::from(pt_value) + k - 1) % 26) + 1).unwrap())));
         }
         ct
     }
@@ -637,7 +637,7 @@ fn main() {
         let mut pt: PlainText = PlainText(vec!());
         for (i, k) in ks.0.iter().enumerate() {
             let ct_value = letter_into_value(&ct.0[i]);
-            pt.0.push(value_into_letter(&((ct_value - k).rem_euclid(26))));
+            pt.0.push(value_into_letter(&(LetterValue::new((((i16::from(ct_value) - i16::from(*k) - 1).rem_euclid(26)) + 1) as u8).unwrap())));
         }
         pt
     }
@@ -853,10 +853,15 @@ fn main() {
     let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
     let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
     new_deck = key_deck_from_passphrase(&passphrase);
+    let mut spare_deck = new_deck.clone();
     let pt = PlainText::from_str("SOLITAIRE").unwrap();
     let ks = get_key_stream(new_deck, pt.0.len());
     let ct = encrypt(&pt, &ks);
     println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
     println!("ct: {:?}", ct.ct_to_string());
+
+    let ks = get_key_stream(spare_deck, pt.0.len());
+    let pt = decrypt(&ct, &ks);
+    println!("pt: {:?}", pt.pt_to_string());
 
 }
