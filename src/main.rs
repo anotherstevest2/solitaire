@@ -462,7 +462,7 @@ impl FromStr for Passphrase {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut pp = Passphrase(Vec::new());
-        for letter in s.bytes() {
+        for letter in s.to_uppercase().bytes() {
             if let l = UpperLetter::new(letter).unwrap() {
                 pp.0.push(l);
             }
@@ -556,16 +556,17 @@ fn main() {
         key_deck.clone()
     }
 
-    fn key_deck_from_passphrase(passphrase: Passphrase) -> Cards {
-        let deck = Cards::new(DeckStyle::Jokers, 1);
-        let mut deck = deck.reverse();
+    fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
+        let mut deck = Cards::new(DeckStyle::Jokers, 1);
 
         for letter in passphrase.iter() {
             deck = next_deck_state(deck);
 
-            // count cut at phase phrase value, maintain bottom card
+            // count cut at passphrase letter value, maintain bottom card
             let letter_value = letter_into_value(letter);
-            let TwoStacks(top, mut bottom) = deck.clone().cut(letter_value.checked_add(1).unwrap().into());
+            let TwoStacks(top, mut bottom) = deck
+                .clone()
+                .cut(letter_value.into());
             let bottom_card = bottom.0
                 .pop()
                 .unwrap();
@@ -804,18 +805,22 @@ fn main() {
 
 
 
+
+    println!("First vector test:");
     let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
-
-
-    let mut spare_new_deck = new_deck.clone();
-
     let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
     let ks = get_key_stream(new_deck, pt.0.len());
-    println!("key: <null key>, pt: {}, ks: {}", pt.pt_to_string(), ks.ks_to_string());
-
     let ct = encrypt(&pt, &ks);
+    println!("key: <null key>, pt: {}, ks: {}", pt.pt_to_string(), ks.ks_to_string());
     println!("ct: {:?}", ct.ct_to_string());
 
-
-
+    println!("Second vector test:");
+    let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+    let passphrase: Passphrase = Passphrase::from_str("f").unwrap();
+    new_deck = key_deck_from_passphrase(&passphrase);
+    let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+    println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
+    println!("ct: {:?}", ct.ct_to_string());
 }
