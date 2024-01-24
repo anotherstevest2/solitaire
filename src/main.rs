@@ -19,6 +19,14 @@ use once_cell::sync::OnceCell;
 //        the api.
 //        Another Idea:  Create a trait for NewtypeVec which unwraps the newtype to make
 //        All of the methods that work on a vector, work on the newtype.
+// TODO - Need to better understand how to do math with bounded values.  At this point it
+//        appears that some/all math that includes bounded values gets checking whereas
+//        if you extract raw values, do math, create new bounded values it works as expected.
+//        the issue might be just if you are saving to an existing bounded value - and maybe
+//        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
+//        not using it right.  and it might be best to make a "raw_value" method for all of them
+//        and always do the math with a raw value and create a new bounded value with the result.
+//
 
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
@@ -316,24 +324,11 @@ trait Value {
 type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
-    println!("Upper Letter: {:?}", *ul);
-    // LetterValue::new((*ul)
-    //     .checked_sub(64)
-    //     .expect("Called  with ul: {ul}")
-    //     .into())
-    //     .unwrap()
-    let unwrapped_val: u8 = (*ul).into();
-    LetterValue::new(unwrapped_val - 64).unwrap()
+    LetterValue::new(u8::from(*ul) - 64).unwrap()
 }
 
 fn value_into_letter(lv: &LetterValue) -> UpperLetter {
-    // UpperLetter::new((*lv)
-    //     .checked_add(64)
-    //     .unwrap()
-    //     .into())
-    //     .unwrap()
-    let unwrapped_val: u8 = (*lv).into();
-    UpperLetter::new(unwrapped_val + 64).unwrap()
+    UpperLetter::new(u8::from(*lv) + 64).unwrap()
 }
 
 type LetterValue = BoundedU8<1, 26>;
@@ -358,6 +353,14 @@ impl PlainText {
     fn new() -> PlainText {
         PlainText(Vec::new())
     }
+
+    fn pt_to_string(&self) -> String {
+        let mut s = String::new();
+        for c in self.0.iter() {
+            s.push(u8::from(*c) as char);
+        }
+        s
+    }
 }
 
 impl FromStr for PlainText {
@@ -379,6 +382,14 @@ struct CypherText (Vec<UpperLetter>);
 impl CypherText {
     fn new() -> CypherText {
         CypherText(Vec::new())
+    }
+
+    fn ct_to_string(&self) -> String {
+        let mut s = String::new();
+        for c in self.0.iter() {
+            s.push(u8::from(*c) as char);
+        }
+        s
     }
 }
 
@@ -403,6 +414,14 @@ impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
     }
+
+    fn pp_to_string(&self) -> String {
+        let mut s = String::new();
+        for c in self.0.iter() {
+            s.push(u8::from(*c) as char);
+        }
+        s
+    }
 }
 
 impl FromStr for Passphrase {
@@ -424,6 +443,14 @@ struct KeyStream (Vec<LetterValue>);
 impl KeyStream {
     fn new() -> KeyStream {
         KeyStream(Vec::new())
+    }
+    fn ks_to_string(&self) -> String {
+        let mut s = String::new();
+        for c in self.0.iter() {
+            s.push_str(&(u8::from(*c).to_string()));
+            s.push_str(" ");
+        }
+        s
     }
 }
 
@@ -523,12 +550,10 @@ fn main() {
         let mut key_stream = KeyStream::new();
         // Ensure key length is a multiple of 5 (as is tradition) so the cypher text will be also
         let key_length= ((key_length + 4) / 5) * 5; // integer divide to drop remainder
-        println!("key_length: {key_length}");
         while key_stream.0.len() < key_length {
             key_deck = next_deck_state(key_deck);
 
             // Find output card, or Joker
-            println!("top card: {:?}", &key_deck.look_at(0).unwrap());
             let top_card_value = &key_deck
                 .look_at(0)
                 .unwrap()
@@ -558,7 +583,9 @@ fn main() {
         let mut ct: CypherText = CypherText(vec!());
         for (i, k) in ks.0.iter().enumerate() {
             let pt_value = letter_into_value(&pt.0[i]);
-            ct.0.push(value_into_letter(&((pt_value + k) % 26)));
+            // ct.0.push(value_into_letter(&(((pt_value + k) % 26) + 1)));
+            let raw_val: u8 = pt_value.into();
+            ct.0.push(value_into_letter(&(LetterValue::new(((raw_val + k) % 26) + 1).unwrap())));
         }
         ct
     }
@@ -604,11 +631,10 @@ fn main() {
 
     let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
     let ks = get_key_stream(new_deck, pt.0.len());
-    println!("key: <null key>, pt: {:?}, ks: {:?}", pt, ks.0);
+    println!("key: <null key>, pt: {}, ks: {}", pt.pt_to_string(), ks.ks_to_string());
 
     let ct = encrypt(&pt, &ks);
-    println!("ct: {:?}", ct);
-
+    println!("ct: {:?}", ct.ct_to_string());
 
 
 
