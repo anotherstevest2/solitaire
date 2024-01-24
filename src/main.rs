@@ -379,7 +379,7 @@ fn card_val_into_let_val(cv: CardValue) -> LetterValue {
 
 type CardPosition = BoundedU8<1, 54>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PlainText (Vec<UpperLetter>);
 
 impl PlainText {
@@ -614,6 +614,11 @@ fn main() {
             panic!("KeyStream not long enough");
         }
 
+        let mut pt = (*pt).clone();
+        while pt.0.len() % 5 != 0 {
+            pt.0.push(UpperLetter::new('X' as u8).unwrap());
+        }
+
         let mut ct: CypherText = CypherText(vec!());
         for (i, k) in ks.0.iter().enumerate() {
             let pt_value = letter_into_value(&pt.0[i]);
@@ -823,4 +828,35 @@ fn main() {
     let ct = encrypt(&pt, &ks);
     println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
     println!("ct: {:?}", ct.ct_to_string());
+
+    println!("third vector test:");
+    let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+    let passphrase: Passphrase = Passphrase::from_str("fo").unwrap();
+    new_deck = key_deck_from_passphrase(&passphrase);
+    let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+    println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
+    println!("ct: {:?}", ct.ct_to_string());
+
+    println!("eleventh vector test:");
+    let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+    let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+    new_deck = key_deck_from_passphrase(&passphrase);
+    let pt = PlainText::from_str("AAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+    println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
+    println!("ct: {:?}", ct.ct_to_string());
+
+    println!("twelveth vector test:");
+    let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+    let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+    new_deck = key_deck_from_passphrase(&passphrase);
+    let pt = PlainText::from_str("SOLITAIRE").unwrap();
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+    println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
+    println!("ct: {:?}", ct.ct_to_string());
+
 }
