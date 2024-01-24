@@ -81,8 +81,8 @@ const NEW_DECK_ARR: [Card; 54] = [
     Card::Three(Suit::Spade),
     Card::Two(Suit::Spade),
     Card::Ace(Suit::Spade),
-    Card::Joker(JokerId::B),
     Card::Joker(JokerId::A),
+    Card::Joker(JokerId::B),
 ];
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
@@ -244,9 +244,41 @@ impl Cards {
 
     fn move_card(&mut self, card: Card, position_change: isize) -> Result<Cards, String> {
         let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
-        let position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
+        let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         let card = self.0.remove(position_start);
+
+        // adjust for vector index offset caused by removing the card
+        if position_end > position_start {
+            position_end += 1;
+        }
+
+        // ensure we are still in the range vec insert requires (corner case at end of deck)
+        position_end = position_end.rem_euclid(self.0.len() + 1) as usize;
+
+        self.0.insert(position_end, card);
+
+        Ok(self.clone())
+    }
+
+    fn move_card_circular(&mut self, card: Card, position_change: isize) -> Result<Cards, String> {
+        let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
+        let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
+
+        // perform wrap around adjustment (i.e. as if cards are in a circle, not a stack)
+        // if position change is positive and position_end is less than position start, we need to
+        // add one (since there is no card to skip over between the last and first in a stack as we
+        // wrap around.  Similarly if the position change is negative and position_end is greater
+        // than the position start, we need to subtract one,
+
+        if position_change > 0 && position_end < position_start {
+            position_end += 1;
+        } else if position_change < 0 && position_end > position_start {
+            position_end -= 1;
+        }
+
+        let card = self.0.remove(position_start);
+
         self.0.insert(position_end, card);
 
         Ok(self.clone())
@@ -341,6 +373,7 @@ fn card_val_into_position(cv: &CardValue) -> CardPosition {
 }
 
 fn card_val_into_let_val(cv: CardValue) -> LetterValue {
+    // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
     LetterValue::new((u8::from(cv) - 1) % 26 + 1).unwrap()
 }
 
@@ -470,8 +503,8 @@ fn value_init() -> HashMap<Card, CardValue> {
             values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
         }
     }
-    // add the last joker (order is B then A) with same (53) value as the other one
-    values.insert(Card::Joker(JokerId::A), CardValue::new(53u8).unwrap());
+    // add the last joker (order is A then B) with same (53) value as the other one
+    values.insert(Card::Joker(JokerId::B), CardValue::new(53u8).unwrap());
     values
 }
 
@@ -480,9 +513,9 @@ fn main() {
 
     fn next_deck_state(mut key_deck: Cards) -> Cards {
         // A Joker move
-        let mut key_deck = key_deck.move_card(Card::Joker(JokerId::A), 1).unwrap();
+        let mut key_deck = key_deck.move_card_circular(Card::Joker(JokerId::A), 1).unwrap();
         // B Joker move
-        key_deck = key_deck.move_card(Card::Joker(JokerId::B), 2).unwrap();
+        key_deck = key_deck.move_card_circular(Card::Joker(JokerId::B), 2).unwrap();
 
         // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
         // and swap top with bottom leaving Jokers in place
@@ -513,7 +546,7 @@ fn main() {
             .unwrap()
             .value();
         let TwoStacks(top, mut bottom) = key_deck
-                .cut(card_val_into_let_val(*bottom_card_value).into());
+            .cut((*bottom_card_value).into());
         let bottom_card = bottom.0
             .pop()
             .unwrap();
@@ -544,7 +577,6 @@ fn main() {
         deck
     }
 
-    // key_deck is interpreted as *face-up*
     fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
         let mut key_deck = key_deck;
         let mut key_stream = KeyStream::new();
@@ -559,7 +591,8 @@ fn main() {
                 .unwrap()
                 .value();
             // hidden canceling adjustments: top_card_value [1..53] so subtract 1 to make it
-            // an index range of [0..52] and then add 1 to look at card *after* the one indexed
+            // an index range of [0..52] (i.e. so original 1 is pointing to first card)
+            // and then add 1 to look at card *after* the one indexed
             // by the top card value for a net adjustment of 0
             let output_card_candidate_position = card_val_into_position(top_card_value);
             let output_card_candidate = &key_deck
@@ -583,9 +616,8 @@ fn main() {
         let mut ct: CypherText = CypherText(vec!());
         for (i, k) in ks.0.iter().enumerate() {
             let pt_value = letter_into_value(&pt.0[i]);
-            // ct.0.push(value_into_letter(&(((pt_value + k) % 26) + 1)));
-            let raw_val: u8 = pt_value.into();
-            ct.0.push(value_into_letter(&(LetterValue::new(((raw_val + k) % 26) + 1).unwrap())));
+            // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
+            ct.0.push(value_into_letter(&(LetterValue::new(((u8::from((pt_value)) + k - 1) % 26) + 1).unwrap())));
         }
         ct
     }
@@ -604,29 +636,177 @@ fn main() {
         pt
     }
 
-    let deck = Cards::new(DeckStyle::Jokers, 1);
-    println!("New deck (face down): {deck}");
-    println!();
-    let deck = deck.reverse();
-    println!("Reversed deck (or, for our purposes, original deck now face up): {deck}");
-    println!();
-    let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
-    println!("After cut top: {top}");
-    println!();
-    println!("After cut bottom: {bottom}");
-    println!();
-    println!("Cut point: {}", top.0.len());
-    println!();
-    let deck = TwoStacks(top, bottom).merge();
-    println!("after first riffle:");
-    println!("{}", deck);
-    println!();
-    let mut deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
-    println!("after 10 more riffles:");
-    println!("{}", deck);
-    println!();
+    // let deck = Cards::new(DeckStyle::Jokers, 1);
+    // println!("New deck: {deck}");
+    // println!();
+    // let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
+    // println!("After cut top: {top}");
+    // println!();
+    // println!("After cut bottom: {bottom}");
+    // println!();
+    // println!("Cut point: {}", top.0.len());
+    // println!();
+    // let deck = TwoStacks(top, bottom).merge();
+    // println!("after first riffle:");
+    // println!("{}", deck);
+    // println!();
+    // let mut deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
+    // println!("after 10 more riffles:");
+    // println!("{}", deck);
+    // println!();
+
+    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+
+
+    // let mut spare_new_deck = new_deck.clone();
+    //
+    // let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
+    // let ks = get_key_stream(new_deck, pt.0.len());
+    // println!("key: <null key>, pt: {}, ks: {}", pt.pt_to_string(), ks.ks_to_string());
+    //
+    // let ct = encrypt(&pt, &ks);
+    // println!("ct: {:?}", ct.ct_to_string());
+    //
+
+    // Sample output practice per Scheier
+
+    // let mut key_deck = Cards::new(DeckStyle::Jokers, 1);
+    // println!("new deck: {}", key_deck);
+    //
+    // let mut key_deck = key_deck.move_card_circular(Card::Joker(JokerId::A), 1).unwrap();
+    // println!("after A joker move: \n{}", key_deck);
+    //
+    // key_deck = key_deck.move_card_circular(Card::Joker(JokerId::B), 2).unwrap();
+    // println!("after B joker move: \n{}", key_deck);
+    //
+    // // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
+    // // and swap top with bottom leaving Jokers in place
+    // let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
+    // if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
+    //     // Order is: above_both, FB above_fa, FA key_deck
+    //     let fb = above_fa.draw_count(1).unwrap();
+    //     let fa = key_deck.draw_count(1).unwrap();
+    //     // swap top and bottom leaving fools in same relative positions
+    //     key_deck.append(fb);
+    //     key_deck.append(above_fa);
+    //     key_deck.append(fa);
+    //     key_deck.append(above_both);
+    // } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
+    //     // Order is: above_fa, FA above_fb, FB key_deck
+    //     let fa = above_fb.draw_count(1).unwrap();
+    //     let fb = key_deck.draw_count(1).unwrap();
+    //     // swap top and bottom leaving fools in same relative positions
+    //     key_deck.append(fa);
+    //     key_deck.append(above_fb);
+    //     key_deck.append(fb);
+    //     key_deck.append(above_fa);
+    // }
+    // println!("after triple cut: \n{}", key_deck);
+    //
+    // let bottom_card_value = &key_deck.
+    //     look_at(key_deck.0.len() - 1)
+    //     .unwrap()
+    //     .value();
+    // println!("bottom card value {}", u8::from(*bottom_card_value));
+    // let TwoStacks(top, mut bottom) = key_deck
+    //     .cut((*bottom_card_value).into());
+    // println!("top stack: {}", top);
+    // println!("bottom stack: {}", bottom);
+    // let bottom_card = bottom.0
+    //     .pop()
+    //     .unwrap();
+    // let key_deck = bottom
+    //     .append(top)
+    //     .append(Cards(vec!(bottom_card)));
+    // println!("after count cut: \n{}", key_deck);
+    //
+    // // Find output card, or Joker
+    // let top_card_value = &key_deck
+    //     .look_at(0)
+    //     .unwrap()
+    //     .value();
+    // // hidden canceling adjustments: top_card_value [1..53] so subtract 1 to make it
+    // // an index range of [0..52] (i.e. so original 1 is pointing to first card)
+    // // and then add 1 to look at card *after* the one indexed
+    // // by the top card value for a net adjustment of 0
+    // let output_card_candidate_position = card_val_into_position(top_card_value);
+    // let output_card_candidate = &key_deck
+    //     .look_at(output_card_candidate_position
+    //         .into())
+    //     .unwrap();
+    // println!("Output Card Candidate: {}", **output_card_candidate);
+    //
+    // // Repeat the whole cycle again:
+    // println!("repeating the whole process again");
+    // let mut key_deck = key_deck.move_card_circular(Card::Joker(JokerId::A), 1).unwrap();
+    // println!("after A joker move: \n{}", key_deck);
+    //
+    // key_deck = key_deck.move_card_circular(Card::Joker(JokerId::B), 2).unwrap();
+    // println!("after B joker move: \n{}", key_deck);
+    //
+    // // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
+    // // and swap top with bottom leaving Jokers in place
+    // let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
+    // if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
+    //     // Order is: above_both, FB above_fa, FA key_deck
+    //     let fb = above_fa.draw_count(1).unwrap();
+    //     let fa = key_deck.draw_count(1).unwrap();
+    //     // swap top and bottom leaving fools in same relative positions
+    //     key_deck.append(fb);
+    //     key_deck.append(above_fa);
+    //     key_deck.append(fa);
+    //     key_deck.append(above_both);
+    // } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
+    //     // Order is: above_fa, FA above_fb, FB key_deck
+    //     let fa = above_fb.draw_count(1).unwrap();
+    //     let fb = key_deck.draw_count(1).unwrap();
+    //     // swap top and bottom leaving fools in same relative positions
+    //     key_deck.append(fa);
+    //     key_deck.append(above_fb);
+    //     key_deck.append(fb);
+    //     key_deck.append(above_fa);
+    // }
+    // println!("after triple cut: \n{}", key_deck);
+    //
+    // let bottom_card_value = &key_deck.
+    //     look_at(key_deck.0.len() - 1)
+    //     .unwrap()
+    //     .value();
+    // println!("bottom card value {}", u8::from(*bottom_card_value));
+    // let TwoStacks(top, mut bottom) = key_deck
+    //     .cut((*bottom_card_value).into());
+    // println!("top stack: {}", top);
+    // println!("bottom stack: {}", bottom);
+    // let bottom_card = bottom.0
+    //     .pop()
+    //     .unwrap();
+    // let key_deck = bottom
+    //     .append(top)
+    //     .append(Cards(vec!(bottom_card)));
+    // println!("after count cut: \n{}", key_deck);
+    //
+    // // Find output card, or Joker
+    // let top_card_value = &key_deck
+    //     .look_at(0)
+    //     .unwrap()
+    //     .value();
+    // // hidden canceling adjustments: top_card_value [1..53] so subtract 1 to make it
+    // // an index range of [0..52] (i.e. so original 1 is pointing to first card)
+    // // and then add 1 to look at card *after* the one indexed
+    // // by the top card value for a net adjustment of 0
+    // let output_card_candidate_position = card_val_into_position(top_card_value);
+    // let output_card_candidate = &key_deck
+    //     .look_at(output_card_candidate_position
+    //         .into())
+    //     .unwrap();
+    // println!("Output Card Candidate: {}", **output_card_candidate);
+
+
+
 
     let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+
+
     let mut spare_new_deck = new_deck.clone();
 
     let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
