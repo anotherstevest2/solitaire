@@ -890,12 +890,20 @@ fn main() {
         Ok(io::BufReader::new(file).lines())
     }
 
-    fn remove_whitespace(s: &str)-> String {
+    fn remove_whitespace(s: &str) -> String {
         s.chars().filter(|c|!c.is_whitespace()).collect()
     }
 
     fn remove_ticks(s: &str) -> String {
         s.chars().filter(|c| *c != '\'').collect()
+    }
+
+    fn pad_with_x(s: &str) -> String {
+        let mut s = s.clone().to_string();
+        while s.len() % 5 != 0 {
+            s.push('X');
+        }
+        s
     }
 
     let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
@@ -917,7 +925,8 @@ fn main() {
                 pt = PlainText::from_str(&pt_str[1]).unwrap();
             } else if let Some(pp_str) = key_re.captures(&line) {
                  println!("pf: {:?}", remove_ticks(&pp_str[1]));
-                if let Ok(pp) = Passphrase::from_str(&remove_ticks(&pp_str[1])) {
+                if let Ok(ppp) = Passphrase::from_str(&remove_ticks(&pp_str[1])) {
+                    pp = ppp;
                 } else {
                     pp = Passphrase::from_str("").unwrap();
                 }
@@ -931,9 +940,13 @@ fn main() {
                 }
                 ks = get_key_stream(key_deck, pt.0.len());
                 let computed_ct = encrypt(&pt, &ks);
-                assert!(computed_ct.ct_to_string() == ct.ct_to_string());
+                let computed_ct_str = computed_ct.ct_to_string();
+                let ct_str = ct.ct_to_string();
+                assert_eq!(computed_ct_str, ct_str);
                 let computed_pt = decrypt(&ct, &ks);
-                assert!(computed_pt.pt_to_string() == pt.pt_to_string());
+                let computed_pt_str = computed_pt.pt_to_string();
+                let pt_str = pad_with_x(&pt.pt_to_string());
+                assert_eq!(computed_pt_str, pt_str);
                 println!("PASS\n");
             }
         }
