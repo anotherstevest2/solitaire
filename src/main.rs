@@ -513,6 +513,7 @@ fn value_init() -> HashMap<Card, CardValue> {
 fn main() -> Result<()> {
     init();
 
+    println!();
     info!("Hello world");
     VALUES.get_or_init(|| {value_init()});
 
