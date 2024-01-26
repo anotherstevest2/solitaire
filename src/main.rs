@@ -2,7 +2,6 @@ use std::fmt;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::str::FromStr;
-use std::string::ParseError;
 use bounded_integer::BoundedU8;
 use rand_distr::{Normal, Distribution};
 use rand::Rng;
@@ -20,7 +19,7 @@ pub mod sdk;
 //        so: in the crate (where visible via an api), implement all the functions
 //        whereas internally, keep the .0 for the new types which don't appear in
 //        the api.
-//        Another Idea:  Create a trait for NewtypeVec which unwraps the newtype to make
+//        Another Idea:  Create a trait for Newtype Vec which unwraps the newtype to make
 //        All of the methods that work on a vector, work on the newtype.
 // TODO - Need to better understand how to do math with bounded values.  At this point it
 //        appears that some/all math that includes bounded values gets checking whereas
@@ -257,7 +256,7 @@ impl Cards {
         }
 
         // ensure we are still in the range vec insert requires (corner case at end of deck)
-        position_end = position_end.rem_euclid(self.0.len() + 1) as usize;
+        position_end = position_end.rem_euclid(self.0.len() + 1);
 
         self.0.insert(position_end, card);
 
@@ -405,9 +404,8 @@ impl FromStr for PlainText {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut pt = PlainText(Vec::new());
         for letter in s.bytes() {
-            if let l = UpperLetter::new(letter).unwrap() {
-                pt.0.push(l);
-            }
+            let l = UpperLetter::new(letter).unwrap();
+            pt.0.push(l);
         }
         Ok(pt)
     }
@@ -435,9 +433,8 @@ impl FromStr for CypherText {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ct = CypherText(Vec::new());
         for letter in s.bytes() {
-            if let l = UpperLetter::new(letter).unwrap() {
-                ct.0.push(l);
-            }
+            let l = UpperLetter::new(letter).unwrap();
+            ct.0.push(l);
         }
         Ok(ct)
     }
@@ -888,7 +885,6 @@ fn main() -> Result<()> {
     use std::io::{self, BufRead};
     use std::path::Path;
     use regex::Regex;
-    use std::{thread, time};
 
     fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
         where P: AsRef<Path>, {
@@ -905,7 +901,7 @@ fn main() -> Result<()> {
     }
 
     fn pad_with_x(s: &str) -> String {
-        let mut s = s.clone().to_string();
+        let mut s = s.to_string();
         while s.len() % 5 != 0 {
             s.push('X');
         }
@@ -915,15 +911,14 @@ fn main() -> Result<()> {
     let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
     let ct_re = Regex::new(r"^Ciphertext: +((([A-Z]{5}+) *)+) *$").unwrap();
     let key_re = Regex::new(r"^Key: +('([a-z]+)'|(<null key>)) *$").unwrap();
-    let hundred_millis = time::Duration::from_millis(100);
     if let Ok(lines) = read_lines("./sol-test.txt") {
         println!();
 
         let mut pt: PlainText = PlainText::new();
         let mut pp: Passphrase = Passphrase::from_str("").unwrap();
-        let mut ct: CypherText = CypherText::new();
+        let mut ct: CypherText;
         let mut key_deck: Cards;
-        let mut ks: KeyStream = KeyStream::new();
+        let mut ks: KeyStream;
 
         for line in lines.flatten() {
             if let Some(pt_str) = pt_re.captures(&line) {
