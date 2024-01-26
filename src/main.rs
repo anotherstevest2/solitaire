@@ -7,6 +7,9 @@ use bounded_integer::BoundedU8;
 use rand_distr::{Normal, Distribution};
 use rand::Rng;
 use once_cell::sync::OnceCell;
+use sdk::*;
+
+pub mod sdk;
 
 // TODO - import and refactor to use anyhow for error handling;
 // TODO - define deref trait so that we don't need the .0 in cards.0.len() etc.
@@ -510,7 +513,10 @@ fn value_init() -> HashMap<Card, CardValue> {
     values
 }
 
-fn main() {
+fn main() -> Result<()> {
+    init();
+
+    info!("Hello world");
     VALUES.get_or_init(|| {value_init()});
 
     fn next_deck_state(mut key_deck: Cards) -> Cards {
@@ -951,4 +957,6 @@ fn main() {
             }
         }
     }
+
+    Ok(())
 }
