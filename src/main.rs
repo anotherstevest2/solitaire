@@ -244,7 +244,7 @@ impl Cards {
         self
     }
 
-    fn move_card(&mut self, card: Card, position_change: isize) -> Result<Cards, String> {
+    fn move_card(mut self, card: Card, position_change: isize) -> Result<Cards, String> {
         let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
         let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
@@ -263,7 +263,7 @@ impl Cards {
         Ok(self.clone())
     }
 
-    fn move_card_circular(&mut self, card: Card, position_change: isize) -> Result<Cards, String> {
+    fn move_card_circular(mut self, card: Card, position_change: isize) -> Result<Cards, String> {
         let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
         let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
@@ -298,9 +298,8 @@ impl Cards {
         Ok(self.draw_count(count).unwrap())
     }
 
-    fn append(&mut self, mut cards: Cards) -> &mut Self {
+    fn append(&mut self, mut cards: Cards) {
         self.0.append(&mut cards.0);
-        self
     }
 
     fn look_at(&self, index: usize) -> Result<&Card, String> {
@@ -514,7 +513,12 @@ fn main() -> Result<()> {
     init();
 
     println!();
-    info!("Hello world");
+    trace!("a trace example");
+    debug!("deboogging");
+    info!("such information");
+    warn!("o_O");
+    error!("boom");
+
     VALUES.get_or_init(|| {value_init()});
 
     fn next_deck_state(mut key_deck: Cards) -> Cards {
@@ -556,10 +560,9 @@ fn main() -> Result<()> {
         let bottom_card = bottom.0
             .pop()
             .unwrap();
-        let key_deck = bottom
-            .append(top)
-            .append(Cards(vec!(bottom_card)));
-        key_deck.clone()
+        bottom.append(top);
+        bottom.append(Cards(vec!(bottom_card)));
+        bottom.clone()
     }
 
     fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
@@ -576,10 +579,9 @@ fn main() -> Result<()> {
             let bottom_card = bottom.0
                 .pop()
                 .unwrap();
-            deck = bottom
-                .append(top)
-                .append(Cards(vec!(bottom_card)))
-                .clone();
+            bottom.append(top);
+            bottom.append(Cards(vec!(bottom_card)));
+            deck = bottom.clone();
         }
         deck
     }
