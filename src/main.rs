@@ -28,6 +28,9 @@ pub mod sdk;
 //        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
 //        not using it right.  and it might be best to make a "raw_value" method for all of them
 //        and always do the math with a raw value and create a new bounded value with the result.
+// TODO - Refactor Shuffle and reverse to shuffle in place - and implement tests (which maybe
+//        include a new randomness measure?)
+// TODO - Refactor the moves to move in place and return a bool indicating success or failure.
 //
 
 const NEW_DECK_ARR: [Card; 54] = [
