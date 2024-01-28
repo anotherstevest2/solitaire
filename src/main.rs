@@ -11,7 +11,8 @@ use sdk::*;
 pub mod sdk;
 
 // TODO - import and refactor to use anyhow for error handling;
-// TODO - define deref trait so that we don't need the .0 in cards.0.len() etc.
+// TODO - (Don't, as deref should only be implemented for pointers)
+//        define deref trait so that we don't need the .0 in cards.0.len() etc.
 //        Umm... Cancel the above, for predictability reasons (per the API guidance)
 //        deref should *only* by defined for smart pointers.  Instead, the desired
 //        methods (len, push, pop etc...) should be defined for the newtype
@@ -28,10 +29,33 @@ pub mod sdk;
 //        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
 //        not using it right.  and it might be best to make a "raw_value" method for all of them
 //        and always do the math with a raw value and create a new bounded value with the result.
-// TODO - Refactor Shuffle and reverse to shuffle in place - and implement tests (which maybe
-//        include a new randomness measure?)
-// TODO - Refactor the moves to move in place and return a bool indicating success or failure.
+// TODO - Implement  shuffle tests (which maybe include a new randomness measure?)
 //
+
+impl fmt::Display for Suit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Suit::Club => write!(f, "C"),
+            Suit::Diamond => write!(f, "D"),
+            Suit::Heart => write!(f, "H"),
+            Suit::Spade => write!(f,  "S"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+enum JokerId{
+    A,
+    B,
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+enum Suit {
+    Club,
+    Diamond,
+    Heart,
+    Spade,
+}
 
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
@@ -89,31 +113,6 @@ const NEW_DECK_ARR: [Card; 54] = [
     Card::Joker(JokerId::A),
     Card::Joker(JokerId::B),
 ];
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-enum Suit {
-    Club,
-    Diamond,
-    Heart,
-    Spade,
-}
-
-impl fmt::Display for Suit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Suit::Club => write!(f, "C"),
-            Suit::Diamond => write!(f, "D"),
-            Suit::Heart => write!(f, "H"),
-            Suit::Spade => write!(f,  "S"),
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-enum JokerId{
-    A,
-    B,
-}
 
 impl fmt::Display for JokerId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -176,8 +175,8 @@ struct Cards (
     Vec<Card>,
 );
 
-// new deck order from *back* side (i.e. as usually dealt)
-// hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker B, Joker A 
+// new deck order (per above):
+// hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker A, Joker B
 impl Cards {
     fn new(style: DeckStyle, count: usize) -> Cards {
         let mut deck = if style == DeckStyle::NoJokers {
@@ -245,8 +244,12 @@ impl Cards {
         self.0.reverse();
     }
 
-    fn move_card(&mut self, card: Card, position_change: isize) -> bool {
-        let Some(position_start) = self.0.iter().position(|r| *r == card)
+    fn move_card(&mut self, card: Card, match_index: usize, position_change: isize) -> bool {
+        //let Some(position_start) = self.0.iter().position(|r| *r == card)
+        let Some(position_start) = self.0.iter()
+            .enumerate()
+            .filter_map(|(idx, r)| (*r == card).then(|| idx))
+            .nth(match_index)
         else {
             return false;
         };
@@ -267,8 +270,12 @@ impl Cards {
         true
     }
 
-    fn move_card_circular(&mut self, card: Card, position_change: isize) -> bool {
-        let Some(position_start) = self.0.iter().position(|r| *r == card)
+    fn move_card_circular(&mut self, card: Card, match_index: usize, position_change: isize) -> bool {
+        //let Some(position_start) = self.0.iter().position(|r| *r == card)
+        let Some(position_start) = self.0.iter()
+            .enumerate()
+            .filter_map(|(idx, r)| (*r == card).then(|| idx))
+            .nth(match_index)
         else {
             return false;
         };
@@ -530,9 +537,9 @@ fn main() -> Result<()> {
 
     fn next_deck_state(mut key_deck: Cards) -> Cards {
         // A Joker move
-        assert!(key_deck.move_card_circular(Card::Joker(JokerId::A), 1));
+        assert!(key_deck.move_card_circular(Card::Joker(JokerId::A), 0, 1));
         // B Joker move
-        assert!(key_deck.move_card_circular(Card::Joker(JokerId::B), 2));
+        assert!(key_deck.move_card_circular(Card::Joker(JokerId::B),0, 2));
 
         // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
         // and swap top with bottom leaving Jokers in place
