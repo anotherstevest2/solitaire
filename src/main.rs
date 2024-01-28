@@ -202,12 +202,12 @@ impl Cards {
         Cards(deck)
     }
 
-    fn cut(mut self, index: usize) -> TwoStacks {
+    fn cut(mut self, index: usize) -> Result<TwoStacks, String> {
         if index  >= self.0.len() {
-            panic!("indexed past the end of Cards!");
+            return Err("Can not cut past end of stack".to_string());
         }
         let bottom = Cards(self.0.split_off(index));
-        TwoStacks(self.clone(), bottom)
+        Ok(TwoStacks(self.clone(), bottom))
     }
 
     // noise == 0 => exact cut after first half(even count) or
@@ -232,23 +232,24 @@ impl Cards {
             cp if cp > count as isize => count as usize,
             cp => cp as usize,
         };
-        self.cut(cut_point)
+        self.cut(cut_point).unwrap()
     }
 
-    fn shuffle(mut self, riffle_count: usize, noise: NoiseLevel) -> Cards {
+    fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
         for _ in 0..riffle_count {
-            self = self.cut_with_noise(noise).merge();
+            *self = self.clone().cut_with_noise(noise).merge();
         }
-        self
     }
 
-    fn reverse(mut self) -> Cards {
+    fn reverse(&mut self) {
         self.0.reverse();
-        self
     }
 
-    fn move_card(mut self, card: Card, position_change: isize) -> Result<Cards, String> {
-        let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
+    fn move_card(&mut self, card: Card, position_change: isize) -> bool {
+        let Some(position_start) = self.0.iter().position(|r| *r == card)
+        else {
+            return false;
+        };
         let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         let card = self.0.remove(position_start);
@@ -263,11 +264,14 @@ impl Cards {
 
         self.0.insert(position_end, card);
 
-        Ok(self.clone())
+        true
     }
 
-    fn move_card_circular(mut self, card: Card, position_change: isize) -> Result<Cards, String> {
-        let position_start = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
+    fn move_card_circular(&mut self, card: Card, position_change: isize) -> bool {
+        let Some(position_start) = self.0.iter().position(|r| *r == card)
+        else {
+            return false;
+        };
         let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         // perform wrap around adjustment (i.e. as if cards are in a circle, not a stack)
@@ -286,7 +290,7 @@ impl Cards {
 
         self.0.insert(position_end, card);
 
-        Ok(self.clone())
+        true
     }
 
     fn draw_count(&mut self, count: usize) -> Result<Cards, String> {
@@ -526,9 +530,9 @@ fn main() -> Result<()> {
 
     fn next_deck_state(mut key_deck: Cards) -> Cards {
         // A Joker move
-        let mut key_deck = key_deck.move_card_circular(Card::Joker(JokerId::A), 1).unwrap();
+        assert!(key_deck.move_card_circular(Card::Joker(JokerId::A), 1));
         // B Joker move
-        key_deck = key_deck.move_card_circular(Card::Joker(JokerId::B), 2).unwrap();
+        assert!(key_deck.move_card_circular(Card::Joker(JokerId::B), 2));
 
         // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
         // and swap top with bottom leaving Jokers in place
@@ -559,7 +563,8 @@ fn main() -> Result<()> {
             .unwrap()
             .value();
         let TwoStacks(top, mut bottom) = key_deck
-            .cut((*bottom_card_value).into());
+            .cut((*bottom_card_value).into())
+            .unwrap();
         let bottom_card = bottom.0
             .pop()
             .unwrap();
@@ -578,7 +583,8 @@ fn main() -> Result<()> {
             let letter_value = letter_into_value(letter);
             let TwoStacks(top, mut bottom) = deck
                 .clone()
-                .cut(letter_value.into());
+                .cut(letter_value.into())
+                .unwrap();
             let bottom_card = bottom.0
                 .pop()
                 .unwrap();
