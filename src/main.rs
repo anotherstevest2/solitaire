@@ -30,7 +30,7 @@ pub mod sdk;
 //        not using it right.  and it might be best to make a "raw_value" method for all of them
 //        and always do the math with a raw value and create a new bounded value with the result.
 // TODO - Implement  shuffle tests (which maybe include a new randomness measure?)
-//
+// TODO - Modify merge so it can be either perfect or random
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -141,6 +141,14 @@ enum Card {
     Joker(JokerId),
 }
 
+static DEFAULT_VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
+
+impl Card {
+    fn value(&self) -> CardValue {
+        *DEFAULT_VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
+    }
+}
+
 impl fmt::Display for Card {
     fn  fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -162,7 +170,9 @@ impl fmt::Display for Card {
     }
 }
 
+
 type NoiseLevel = BoundedU8<0, 10>;
+type JokersPerDeck = BoundedU8<0, 2>;
 
 #[derive(PartialEq, Clone)]
 enum DeckStyle {
@@ -175,18 +185,16 @@ struct Cards (
     Vec<Card>,
 );
 
+static RS_VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
+
 // new deck order (per above):
 // hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker A, Joker B
 impl Cards {
-    fn new(style: DeckStyle, count: usize) -> Cards {
-        let mut deck = if style == DeckStyle::NoJokers {
-            NEW_DECK_ARR[..=51].to_vec()
-        } else {
-            NEW_DECK_ARR[..].to_vec()
-        };
-
-        
+    fn new(count: usize, jokers_cnt: JokersPerDeck) -> Cards {
         assert!(count > 0, "At least one deck is required");
+
+        let mut deck =
+            NEW_DECK_ARR[..=(51 + usize::from(jokers_cnt))].to_vec();
 
         if count > 1 {
             let mut additional: Vec<Card> = Vec::new();
@@ -240,6 +248,38 @@ impl Cards {
         }
     }
 
+    fn shuffle_fy(&mut self) {  // Fisher-Yates algo from Wikipedia
+        let mut rng = rand::thread_rng();
+        let n = self.0.len();
+        for i in 0..(n - 2) {
+            self.0.swap(i, rng.gen_range(i..n));
+        }
+    }
+
+    fn default_value_init() -> HashMap<Card, CardValue> {
+        let mut values = HashMap::new();
+        let new_deck = Cards::new(1,JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
+        for (i, card) in new_deck.0.iter().enumerate() {
+            if i < 53 {  // have to skip last card as it will generate illegal value
+                values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
+            }
+        }
+        // add the last joker (order is A then B) with same (53) value as the other one
+        values.insert(Card::Joker(JokerId::B), CardValue::new(53u8).unwrap());
+        values
+    }
+
+    // Rising sequence count metric from numerous sources with modifications for jokers and multiple decks
+    // e.g. "Shuffling Study.pdf" Caedmon
+    // //https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is
+    // https://drive.google.com/file/d/1EoJhtHAO5iFjikkH35KDVrmmJQpXVb5q/view?usp=sharing
+    // Note that my adaptation for the inclusion of one or more jokers per deck and the use of
+    // multiple decks will lead to different values for the same level of shuffling of the one-deck
+    // no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
+    fn shuffle_rs_metric(&self, deck_cnt: usize, joker_cnt: JokersPerDeck) -> usize {
+        todo!()
+    }
+
     fn reverse(&mut self) {
         self.0.reverse();
     }
@@ -253,7 +293,8 @@ impl Cards {
         else {
             return false;
         };
-        let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
+        let mut position_end
+            = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         let card = self.0.remove(position_start);
 
@@ -270,7 +311,8 @@ impl Cards {
         true
     }
 
-    fn move_card_circular(&mut self, card: Card, match_index: usize, position_change: isize) -> bool {
+    fn move_card_circular(&mut self, card: Card, match_index: usize, position_change: isize)
+        -> bool {
         //let Some(position_start) = self.0.iter().position(|r| *r == card)
         let Some(position_start) = self.0.iter()
             .enumerate()
@@ -279,7 +321,8 @@ impl Cards {
         else {
             return false;
         };
-        let mut position_end = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
+        let mut position_end
+            = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         // perform wrap around adjustment (i.e. as if cards are in a circle, not a stack)
         // if position change is positive and position_end is less than position start, we need to
@@ -512,7 +555,7 @@ impl Value for Card {
 
 fn value_init() -> HashMap<Card, CardValue> {
     let mut values = HashMap::new();
-    let new_deck = Cards::new(DeckStyle::Jokers, 1); // new deck w/ Joker -> 54 cards
+    let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
     for (i, card) in new_deck.0.iter().enumerate() {
         if i < 53 {  // have to skip last card as it will generate illegal value
             values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
@@ -581,7 +624,7 @@ fn main() -> Result<()> {
     }
 
     fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
-        let mut deck = Cards::new(DeckStyle::Jokers, 1);
+        let mut deck = Cards::new(1,JokersPerDeck::new(2).unwrap());
 
         for letter in passphrase.iter() {
             deck = next_deck_state(deck);
@@ -954,7 +997,7 @@ fn main() -> Result<()> {
                 println!("ct: {:?}", remove_whitespace(&ct_str[1]));
                 ct = CypherText::from_str(&remove_whitespace(&ct_str[1])).unwrap();
 
-                key_deck = Cards::new(DeckStyle::Jokers, 1);
+                key_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
                 if pp.0.len() > 0 {
                     key_deck = key_deck_from_passphrase(&pp);
                 }
