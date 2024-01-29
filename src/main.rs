@@ -35,6 +35,8 @@ pub mod sdk;
 // TODO - Add a Card trait for next value in sequence with bool indicating if wrap-around enabled
 // TODO - Also add trait or whatever so that user can define their own custom deck
 //        May have to distinguish sequence value from score (point?) value
+// TODO - Rethink bounded for card values as they could be set by users...
+// TODO - Figure out why my shuffle metric is converging on 19 ish rather than the expected 27...
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -149,7 +151,7 @@ static DEFAULT_VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 
 impl Card {
     fn default_value(&self) -> CardValue {
-        *DEFAULT_VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
+        *DEFAULT_VALUES.get_or_init(|| {Cards::default_value_init()}).get(self).unwrap()
     }
 
     fn next_def_val_in_sequence(&self, jokers_per_deck: JokersPerDeck) -> CardValue {
@@ -273,17 +275,15 @@ impl Cards {
         let mut values = HashMap::new();
         let new_deck = Cards::new(1,JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
         for (i, card) in new_deck.0.iter().enumerate() {
-            if i < 53 {  // have to skip last card as it will generate illegal value
-                values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
-            }
+            values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
         }
-        // add the last joker (order is A then B) with same (53) value as the other one
-        values.insert(Card::Joker(JokerId::B), CardValue::new(53u8).unwrap());
         values
     }
 
     // Rising sequence count metric from numerous sources with modifications for jokers and multiple decks
-    // e.g. "Shuffling Study.pdf" Caedmon
+    // e.g. "Shuffling Study.pdf" Caedmon.  Note, max length rising sequences include "sequences of just
+    // a single value (not obvious why but that's the way they are counted in the literature...) and
+    // the closer the value is to the deck size/2 seems to be the actual metric (bell curve and all that)
     // //https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is
     // https://drive.google.com/file/d/1EoJhtHAO5iFjikkH35KDVrmmJQpXVb5q/view?usp=sharing
     // Note that my adaptation for the inclusion of one or more jokers per deck and the use of
@@ -293,20 +293,21 @@ impl Cards {
     // Next
     fn shuffle_rs_metric(&self) -> usize {
         // todo!();
+        let raw_value_deck = self.by_def_raw_values();
         let deck_cnt = self.0.len() / 52;
         let jokers_per_deck = JokersPerDeck::new(((self.0.len() % 52) / deck_cnt) as u8).unwrap();
         let mut n: usize = 0;
         let mut in_sequence = vec![false; self.0.len()];
-        for (i, start) in self.0.iter().enumerate() {
+        for (i, start) in self.0[0..self.0.len()-1].iter().enumerate() {
+            if !in_sequence[i] {
+                in_sequence[i] = true;
+                n += 1;
+            }
             let mut this = start;
             for (k, candidate_card) in self.0[i + 1..].iter().enumerate() {
                 if usize::from(candidate_card.default_value()) == usize::from(this.next_def_val_in_sequence(jokers_per_deck)) {
-                    if !in_sequence[k] {
-                        if !in_sequence[i] {
-                            in_sequence[i] = true;
-                            n += 1;
-                        }
-                        in_sequence[k] = true;
+                    if !in_sequence[i + k + 1] {
+                        in_sequence[i + k + 1] = true;
                         this = candidate_card;
                     }
                 }
@@ -400,6 +401,11 @@ impl Cards {
         }
         Ok(&self.0[index])
     }
+
+    fn by_def_raw_values(&self) -> Vec<u8> {
+        let values: Vec<u8> = self.0.iter().map(|c| u8::from((*c).default_value())).collect();
+        values
+    }
 }
 
 
@@ -434,6 +440,7 @@ impl TwoStacks {
             else if let Some(card) = then_try.pop() {cards.0.push(card)}
             else {panic!("Must have loop counter wrong!");}
         }
+        cards.reverse();
         cards
     }
 }
@@ -459,7 +466,7 @@ fn value_into_letter(lv: &LetterValue) -> UpperLetter {
 type LetterValue = BoundedU8<1, 26>;
 
 
-type CardValue = BoundedU8<1, 53>;
+type CardValue = BoundedU8<1, 54>;
 
 fn card_val_into_position(cv: &CardValue) -> CardPosition {
     CardPosition::new(u8::from(*cv)).unwrap()
@@ -746,6 +753,7 @@ fn main() -> Result<()> {
 
     let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
@@ -756,11 +764,19 @@ fn main() -> Result<()> {
     println!();
     let mut deck = TwoStacks(top, bottom).merge();
     println!("after first riffle:");
-    println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
     deck.shuffle(10, NoiseLevel::new(10).unwrap());
     println!("after 10 more riffles:");
-    println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("by default values:\n {:?}", deck.by_def_raw_values());
+    println!();
+    deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    deck.shuffle_fy();
+    println!("after ideal shuffle");
+    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
 
     // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
