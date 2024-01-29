@@ -31,6 +31,10 @@ pub mod sdk;
 //        and always do the math with a raw value and create a new bounded value with the result.
 // TODO - Implement  shuffle tests (which maybe include a new randomness measure?)
 // TODO - Modify merge so it can be either perfect or random
+// TODO - Ensure all works with up to six decks of cards
+// TODO - Add a Card trait for next value in sequence with bool indicating if wrap-around enabled
+// TODO - Also add trait or whatever so that user can define their own custom deck
+//        May have to distinguish sequence value from score (point?) value
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -144,9 +148,24 @@ enum Card {
 static DEFAULT_VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 
 impl Card {
-    fn value(&self) -> CardValue {
+    fn default_value(&self) -> CardValue {
         *DEFAULT_VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
     }
+
+    fn next_def_val_in_sequence(&self, jokers_per_deck: JokersPerDeck) -> CardValue {
+        let last_val_in_new_deck = match i32::from(jokers_per_deck) {
+            0 => Card::Ace(Suit::Spade).default_value(),
+            1 => Card::Joker(JokerId::A).default_value(),
+            2 => Card::Joker(JokerId::B).default_value(),
+            _ => Card::Ace(Suit::Spade).default_value(),
+        };
+        if u8::from(self.default_value())  < u8::from(last_val_in_new_deck) {
+            CardValue::new(u8::from(self.default_value()) +1).unwrap()
+        } else {
+            CardValue::new(1).unwrap()
+        }
+    }
+
 }
 
 impl fmt::Display for Card {
@@ -271,19 +290,29 @@ impl Cards {
     // multiple decks will lead to different values for the same level of shuffling of the one-deck
     // no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
     // Presence of one or Jokers per deck determined by modulo 52 calculation.
-    // if more than 1 deck in included, wrap around is included as within a rising sequence.
+    // Next
     fn shuffle_rs_metric(&self) -> usize {
-        todo!();
-        // let deck_cnt = *self.0.len() / 52;
-        // let jokers_per_deck = (*self.0.len() % 52) / deck_cnt;
-        // let last_val_in_new_deck = match jokers_per_deck {
-        //     0 => Card::Ace(Suit::Spade).default_value(),
-        //     1 => Card::Joker(JokerId::A).default_value(),
-        //     2 => Card::Joker(JokerId::B).default_value(),
-        //     _ => 0,
-        // };
-
-
+        // todo!();
+        let deck_cnt = self.0.len() / 52;
+        let jokers_per_deck = JokersPerDeck::new(((self.0.len() % 52) / deck_cnt) as u8).unwrap();
+        let mut n: usize = 0;
+        let mut in_sequence = vec![false; self.0.len()];
+        for (i, start) in self.0.iter().enumerate() {
+            let mut this = start;
+            for (k, candidate_card) in self.0[i + 1..].iter().enumerate() {
+                if usize::from(candidate_card.default_value()) == usize::from(this.next_def_val_in_sequence(jokers_per_deck)) {
+                    if !in_sequence[k] {
+                        if !in_sequence[i] {
+                            in_sequence[i] = true;
+                            n += 1;
+                        }
+                        in_sequence[k] = true;
+                        this = candidate_card;
+                    }
+                }
+            }
+        }
+        n
     }
 
     fn reverse(&mut self) {
@@ -715,24 +744,24 @@ fn main() -> Result<()> {
         pt
     }
 
-    // let deck = Cards::new(DeckStyle::Jokers, 1);
-    // println!("New deck: {deck}");
-    // println!();
-    // let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
-    // println!("After cut top: {top}");
-    // println!();
-    // println!("After cut bottom: {bottom}");
-    // println!();
-    // println!("Cut point: {}", top.0.len());
-    // println!();
-    // let deck = TwoStacks(top, bottom).merge();
-    // println!("after first riffle:");
-    // println!("{}", deck);
-    // println!();
-    // let mut deck = deck.shuffle(10, NoiseLevel::new(10).unwrap());
-    // println!("after 10 more riffles:");
-    // println!("{}", deck);
-    // println!();
+    let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!();
+    let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
+    println!("After cut top: {top}");
+    println!();
+    println!("After cut bottom: {bottom}");
+    println!();
+    println!("Cut point: {}", top.0.len());
+    println!();
+    let mut deck = TwoStacks(top, bottom).merge();
+    println!("after first riffle:");
+    println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!();
+    deck.shuffle(10, NoiseLevel::new(10).unwrap());
+    println!("after 10 more riffles:");
+    println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!();
 
     // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
 
