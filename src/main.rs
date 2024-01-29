@@ -174,12 +174,6 @@ impl fmt::Display for Card {
 type NoiseLevel = BoundedU8<0, 10>;
 type JokersPerDeck = BoundedU8<0, 2>;
 
-#[derive(PartialEq, Clone)]
-enum DeckStyle {
-    NoJokers,
-    Jokers
-}
-
 #[derive(PartialEq, Clone, Default)]
 struct Cards (
     Vec<Card>,
@@ -276,8 +270,20 @@ impl Cards {
     // Note that my adaptation for the inclusion of one or more jokers per deck and the use of
     // multiple decks will lead to different values for the same level of shuffling of the one-deck
     // no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
-    fn shuffle_rs_metric(&self, deck_cnt: usize, joker_cnt: JokersPerDeck) -> usize {
-        todo!()
+    // Presence of one or Jokers per deck determined by modulo 52 calculation.
+    // if more than 1 deck in included, wrap around is included as within a rising sequence.
+    fn shuffle_rs_metric(&self) -> usize {
+        todo!();
+        // let deck_cnt = *self.0.len() / 52;
+        // let jokers_per_deck = (*self.0.len() % 52) / deck_cnt;
+        // let last_val_in_new_deck = match jokers_per_deck {
+        //     0 => Card::Ace(Suit::Spade).default_value(),
+        //     1 => Card::Joker(JokerId::A).default_value(),
+        //     2 => Card::Joker(JokerId::B).default_value(),
+        //     _ => 0,
+        // };
+
+
     }
 
     fn reverse(&mut self) {
