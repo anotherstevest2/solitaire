@@ -155,7 +155,7 @@ static DEFAULT_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
 
 impl Card {
     fn default_value(&self) -> DefCardValue {
-        // Panics if self not included in card value table - never allowed
+        // can panic if value table init code broken - not all cards included
         *DEFAULT_VALUES.get_or_init(|| {Cards::default_value_init()}).get(self).unwrap()
     }
 
@@ -166,7 +166,7 @@ impl Card {
             2 => Card::Joker(JokerId::B).default_value(),
             _ => Card::Ace(Suit::Spade).default_value(),
         };
-        // Panics if returned value is beyond legal values - never allowed
+        // can panics if value table or value bounds code broken
         if u8::from(self.default_value())  < u8::from(last_val_in_new_deck) {
             DefCardValue::new(u8::from(self.default_value()) +1).unwrap()
         } else {
@@ -254,7 +254,7 @@ impl Cards {
         let noise: i16 = noise.into();
         let noise: f64 = noise.into();
         let sd = 1.0 + (noise - 1.0) * (f64::sqrt(count) - 1.0)/9.0;
-        //  Panics if sd calc above results in a non-finite number - not possible with this domain
+        //  can panic if sd calc above broken which leads to a non-finite number
         let normal = Normal::new(count/2.0, sd).unwrap();
         let cut_point = normal.sample(&mut rand::thread_rng());
         let cut_point = cut_point as isize;
@@ -283,10 +283,10 @@ impl Cards {
     // required to init values for all possible cards
     fn default_value_init() -> HashMap<Card, DefCardValue> {
         let mut values = HashMap::new();
-        // Panics if code broken - illegal value for JokersPerDeck
+        // can panics if next line broken - illegal value for JokersPerDeck
         let new_deck = Cards::new(1,JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
         for (i, card) in new_deck.0.iter().enumerate() {
-            // Panics if code broken - illegal card value.
+            // can panic if next line broken - illegal card value.
             values.insert(*card, DefCardValue::new((i + 1) as u8).unwrap());  // values not zero based
         }
         values
@@ -304,10 +304,13 @@ impl Cards {
     // Presence of one or Jokers per deck determined by modulo 52 calculation.
     // Next
     fn shuffle_rs_metric(&self) -> usize {
-        // todo!();
-        let raw_value_deck = self.by_def_raw_values();
         let deck_cnt = self.0.len() / 52;
-        let jokers_per_deck = JokersPerDeck::new(((self.0.len() % 52) / deck_cnt) as u8).unwrap();
+        let mut jokers_per_deck = (self.0.len() % 52) / deck_cnt;
+        if jokers_per_deck > 2 {
+            jokers_per_deck = 0;  // if non-complete decks being used - assume no jokers
+        }
+        // can panic if bounds limiting code above broken
+        JokersPerDeck::new(jokers_per_deck as u8).unwrap();
         let mut n: usize = 0;
         let mut in_sequence = vec![false; self.0.len()];
         for (i, start) in self.0[0..self.0.len()-1].iter().enumerate() {
@@ -400,6 +403,7 @@ impl Cards {
 
     fn draw_till(&mut self, card: Card) -> Result<Cards, String> {
         let count = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
+        // can panic if index limiting code above broken
         Ok(self.draw_count(count).unwrap())
     }
 
@@ -469,10 +473,12 @@ trait Value {
 type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
+    // can panic if UpperLetter bounds or next line broken
     LetterValue::new(u8::from(*ul) - 64).unwrap()
 }
 
 fn value_into_letter(lv: &LetterValue) -> UpperLetter {
+    // can panic if UpperLetter bounds or next line broken
     UpperLetter::new(u8::from(*lv) + 64).unwrap()
 }
 
