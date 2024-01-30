@@ -10,7 +10,8 @@ use sdk::*;
 
 pub mod sdk;
 
-// TODO - import and refactor to use anyhow for error handling;
+// TODO - import and refactor to use anyhow for error handling, and maybe also use thiserror to
+//        enable use of #[derive(Error, Debug)] for any custom errors.
 // TODO - (Don't, as deref should only be implemented for pointers)
 //        define deref trait so that we don't need the .0 in cards.0.len() etc.
 //        Umm... Cancel the above, for predictability reasons (per the API guidance)
@@ -37,6 +38,9 @@ pub mod sdk;
 //        May have to distinguish sequence value from score (point?) value
 // TODO - Rethink bounded for card values as they could be set by users...
 // TODO - Figure out why my shuffle metric is converging on 19 ish rather than the expected 27...
+// TODO - Figure out how to have the Cards user define the bounding for the values put in the
+//        Table so that Cards can do bounds checking internally - or, get rid of value bounds
+//        checking.
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -147,24 +151,26 @@ enum Card {
     Joker(JokerId),
 }
 
-static DEFAULT_VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
+static DEFAULT_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
 
 impl Card {
-    fn default_value(&self) -> CardValue {
+    fn default_value(&self) -> DefCardValue {
+        // Panics if self not included in card value table - never allowed
         *DEFAULT_VALUES.get_or_init(|| {Cards::default_value_init()}).get(self).unwrap()
     }
 
-    fn next_def_val_in_sequence(&self, jokers_per_deck: JokersPerDeck) -> CardValue {
+    fn next_def_val_in_sequence(&self, jokers_per_deck: JokersPerDeck) -> DefCardValue {
         let last_val_in_new_deck = match i32::from(jokers_per_deck) {
             0 => Card::Ace(Suit::Spade).default_value(),
             1 => Card::Joker(JokerId::A).default_value(),
             2 => Card::Joker(JokerId::B).default_value(),
             _ => Card::Ace(Suit::Spade).default_value(),
         };
+        // Panics if returned value is beyond legal values - never allowed
         if u8::from(self.default_value())  < u8::from(last_val_in_new_deck) {
-            CardValue::new(u8::from(self.default_value()) +1).unwrap()
+            DefCardValue::new(u8::from(self.default_value()) +1).unwrap()
         } else {
-            CardValue::new(1).unwrap()
+            DefCardValue::new(1).unwrap()
         }
     }
 
@@ -195,12 +201,14 @@ impl fmt::Display for Card {
 type NoiseLevel = BoundedU8<0, 10>;
 type JokersPerDeck = BoundedU8<0, 2>;
 
-#[derive(PartialEq, Clone, Default)]
+#[derive(PartialEq, Clone, Default, Debug)]
 struct Cards (
     Vec<Card>,
 );
 
-static RS_VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
+static RS_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
+
+type DefCardValue = BoundedU8<1, 54>;  // default card value
 
 // new deck order (per above):
 // hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker A, Joker B
@@ -224,12 +232,12 @@ impl Cards {
         Cards(deck)
     }
 
-    fn cut(mut self, index: usize) -> Result<TwoStacks, String> {
+    fn cut(mut self, index: usize) -> TwoStacks {
         if index  >= self.0.len() {
-            return Err("Can not cut past end of stack".to_string());
+            return TwoStacks(self.clone(), Cards(vec!()));
         }
         let bottom = Cards(self.0.split_off(index));
-        Ok(TwoStacks(self.clone(), bottom))
+        TwoStacks(self.clone(), bottom)
     }
 
     // noise == 0 => exact cut after first half(even count) or
@@ -246,6 +254,7 @@ impl Cards {
         let noise: i16 = noise.into();
         let noise: f64 = noise.into();
         let sd = 1.0 + (noise - 1.0) * (f64::sqrt(count) - 1.0)/9.0;
+        //  Panics if sd calc above results in a non-finite number - not possible with this domain
         let normal = Normal::new(count/2.0, sd).unwrap();
         let cut_point = normal.sample(&mut rand::thread_rng());
         let cut_point = cut_point as isize;
@@ -254,7 +263,7 @@ impl Cards {
             cp if cp > count as isize => count as usize,
             cp => cp as usize,
         };
-        self.cut(cut_point).unwrap()
+        self.cut(cut_point)
     }
 
     fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
@@ -271,11 +280,14 @@ impl Cards {
         }
     }
 
-    fn default_value_init() -> HashMap<Card, CardValue> {
+    // required to init values for all possible cards
+    fn default_value_init() -> HashMap<Card, DefCardValue> {
         let mut values = HashMap::new();
+        // Panics if code broken - illegal value for JokersPerDeck
         let new_deck = Cards::new(1,JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
         for (i, card) in new_deck.0.iter().enumerate() {
-            values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
+            // Panics if code broken - illegal card value.
+            values.insert(*card, DefCardValue::new((i + 1) as u8).unwrap());  // values not zero based
         }
         values
     }
@@ -446,6 +458,7 @@ impl TwoStacks {
 }
 
 trait Value {
+    // required to init values for all possible cards, values must be in range of CardValue
     fn value(&self) -> CardValue;
 }
 
@@ -465,8 +478,7 @@ fn value_into_letter(lv: &LetterValue) -> UpperLetter {
 
 type LetterValue = BoundedU8<1, 26>;
 
-
-type CardValue = BoundedU8<1, 54>;
+type CardValue = BoundedU8<1, 53>;
 
 fn card_val_into_position(cv: &CardValue) -> CardPosition {
     CardPosition::new(u8::from(*cv)).unwrap()
@@ -655,8 +667,7 @@ fn main() -> Result<()> {
             .unwrap()
             .value();
         let TwoStacks(top, mut bottom) = key_deck
-            .cut((*bottom_card_value).into())
-            .unwrap();
+            .cut((*bottom_card_value).into());
         let bottom_card = bottom.0
             .pop()
             .unwrap();
@@ -675,8 +686,7 @@ fn main() -> Result<()> {
             let letter_value = letter_into_value(letter);
             let TwoStacks(top, mut bottom) = deck
                 .clone()
-                .cut(letter_value.into())
-                .unwrap();
+                .cut(letter_value.into());
             let bottom_card = bottom.0
                 .pop()
                 .unwrap();
@@ -778,6 +788,11 @@ fn main() -> Result<()> {
     println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
+
+    // check for cut on an empty deck - Panic?, what do we want it to do, return two empties?
+    let mut deck = Cards(vec!());
+    let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(5).unwrap());
+    println!("top: {}, bottom: {}", top, bottom);
 
     // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
 
