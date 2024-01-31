@@ -30,7 +30,6 @@ pub mod sdk;
 //        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
 //        not using it right.  and it might be best to make a "raw_value" method for all of them
 //        and always do the math with a raw value and create a new bounded value with the result.
-// TODO - Implement  shuffle tests (which maybe include a new randomness measure?)
 // TODO - Modify merge so it can be either perfect or random
 // TODO - Ensure all works with up to six decks of cards
 // TODO - Add a Card trait for next value in sequence with bool indicating if wrap-around enabled
@@ -151,6 +150,8 @@ enum Card {
     Joker(JokerId),
 }
 
+type DefCardValue = BoundedU8<1, 54>;  // default card value
+
 static DEFAULT_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
 
 impl Card {
@@ -166,7 +167,7 @@ impl Card {
             2 => Card::Joker(JokerId::B).default_value(),
             _ => Card::Ace(Suit::Spade).default_value(),
         };
-        // can panics if value table or value bounds code broken
+        // can panic if value table or value bounds code broken
         if u8::from(self.default_value())  < u8::from(last_val_in_new_deck) {
             DefCardValue::new(u8::from(self.default_value()) +1).unwrap()
         } else {
@@ -205,10 +206,6 @@ type JokersPerDeck = BoundedU8<0, 2>;
 struct Cards (
     Vec<Card>,
 );
-
-static RS_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
-
-type DefCardValue = BoundedU8<1, 54>;  // default card value
 
 // new deck order (per above):
 // hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker A, Joker B
@@ -310,7 +307,7 @@ impl Cards {
             jokers_per_deck = 0;  // if non-complete decks being used - assume no jokers
         }
         // can panic if bounds limiting code above broken
-        JokersPerDeck::new(jokers_per_deck as u8).unwrap();
+        let jokers_per_deck = JokersPerDeck::new(jokers_per_deck as u8).unwrap();
         let mut n: usize = 0;
         let mut in_sequence = vec![false; self.0.len()];
         for (i, start) in self.0[0..self.0.len()-1].iter().enumerate() {
@@ -473,12 +470,12 @@ trait Value {
 type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
-    // can panic if UpperLetter bounds or next line broken
+    // can panic if UpperLetter bounds code or next line broken
     LetterValue::new(u8::from(*ul) - 64).unwrap()
 }
 
 fn value_into_letter(lv: &LetterValue) -> UpperLetter {
-    // can panic if UpperLetter bounds or next line broken
+    // can panic if UpperLetter bounds code or next line broken
     UpperLetter::new(u8::from(*lv) + 64).unwrap()
 }
 
@@ -487,11 +484,13 @@ type LetterValue = BoundedU8<1, 26>;
 type CardValue = BoundedU8<1, 53>;
 
 fn card_val_into_position(cv: &CardValue) -> CardPosition {
+    // can panic if value vs position bounds broken (value bounds must be >= position)
     CardPosition::new(u8::from(*cv)).unwrap()
 }
 
 fn card_val_into_let_val(cv: CardValue) -> LetterValue {
     // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
+    // can panic if the next line broken
     LetterValue::new((u8::from(cv) - 1) % 26 + 1).unwrap()
 }
 
@@ -520,8 +519,10 @@ impl FromStr for PlainText {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut pt = PlainText(Vec::new());
         for letter in s.bytes() {
-            let l = UpperLetter::new(letter).unwrap();
-            pt.0.push(l);
+            match UpperLetter::new(letter) {
+                Some(l) => pt.0.push(l),
+                None => continue,
+            }
         }
         Ok(pt)
     }
@@ -549,8 +550,10 @@ impl FromStr for CypherText {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ct = CypherText(Vec::new());
         for letter in s.bytes() {
-            let l = UpperLetter::new(letter).unwrap();
-            ct.0.push(l);
+            match UpperLetter::new(letter) {
+                Some(l) => ct.0.push(l),
+                None => continue,
+            }
         }
         Ok(ct)
     }
@@ -609,19 +612,23 @@ static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 
 impl Value for Card {
     fn value(&self) -> CardValue {
+        // can panic if value table init code broken - not all cards included
         *VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
     }
 }
 
 fn value_init() -> HashMap<Card, CardValue> {
     let mut values = HashMap::new();
+    // can panics if next line broken - illegal value for JokersPerDeck
     let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
     for (i, card) in new_deck.0.iter().enumerate() {
         if i < 53 {  // have to skip last card as it will generate illegal value
+            // can panic if next line broken - illegal card value.
             values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
         }
     }
     // add the last joker (order is A then B) with same (53) value as the other one
+    // can panic if next line broken - illegal card value.
     values.insert(Card::Joker(JokerId::B), CardValue::new(53u8).unwrap());
     values
 }
@@ -646,9 +653,11 @@ fn main() -> Result<()> {
 
         // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
         // and swap top with bottom leaving Jokers in place
+        // can panic if code broken - required joker not present
         let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
         if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
             // Order is: above_both, FB above_fa, FA key_deck
+            // can panic if code broken - location of jokers isn't where expected
             let fb = above_fa.draw_count(1).unwrap();
             let fa = key_deck.draw_count(1).unwrap();
             // swap top and bottom leaving fools in same relative positions
@@ -658,6 +667,7 @@ fn main() -> Result<()> {
             key_deck.append(above_both);
         } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
             // Order is: above_fa, FA above_fb, FB key_deck
+            // can panic if code broken - location of jokers isn't where expected
             let fa = above_fb.draw_count(1).unwrap();
             let fb = key_deck.draw_count(1).unwrap();
             // swap top and bottom leaving fools in same relative positions
@@ -669,12 +679,14 @@ fn main() -> Result<()> {
 
         // Count cut based on the value of the bottom card leaving the bottom card at the bottom
         let bottom_card_value = &key_deck.
+            // can panic if code broken - following line doesn't point to location with a card in deck
             look_at(key_deck.0.len() - 1)
             .unwrap()
             .value();
         let TwoStacks(top, mut bottom) = key_deck
             .cut((*bottom_card_value).into());
         let bottom_card = bottom.0
+            // can panic if code broken - bottom should have at least the bottom card
             .pop()
             .unwrap();
         bottom.append(top);
@@ -683,6 +695,7 @@ fn main() -> Result<()> {
     }
 
     fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
+        // can panic if code broken - next line uses illegal joker count
         let mut deck = Cards::new(1,JokersPerDeck::new(2).unwrap());
 
         for letter in passphrase.iter() {
@@ -694,6 +707,7 @@ fn main() -> Result<()> {
                 .clone()
                 .cut(letter_value.into());
             let bottom_card = bottom.0
+                // can panic if code broken - bottom should always have a bottom card
                 .pop()
                 .unwrap();
             bottom.append(top);
@@ -713,6 +727,7 @@ fn main() -> Result<()> {
 
             // Find output card, or Joker
             let top_card_value = &key_deck
+                // can panic if code broken - deck should always have a top card.
                 .look_at(0)
                 .unwrap()
                 .value();
@@ -722,6 +737,7 @@ fn main() -> Result<()> {
             // by the top card value for a net adjustment of 0
             let output_card_candidate_position = card_val_into_position(top_card_value);
             let output_card_candidate = &key_deck
+            // can panic if code broken - output card should always be present
                 .look_at(output_card_candidate_position
                     .into())
                 .unwrap();
@@ -748,7 +764,10 @@ fn main() -> Result<()> {
         for (i, k) in ks.0.iter().enumerate() {
             let pt_value = letter_into_value(&pt.0[i]);
             // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
-            ct.0.push(value_into_letter(&(LetterValue::new(((u8::from(pt_value) + k - 1) % 26) + 1).unwrap())));
+            ct.0.push(value_into_letter(
+                &(LetterValue::new(
+                    ((u8::from(pt_value) + k - 1) % 26) + 1)
+                    .unwrap())));
         }
         ct
     }
@@ -762,10 +781,16 @@ fn main() -> Result<()> {
         let mut pt: PlainText = PlainText(vec!());
         for (i, k) in ks.0.iter().enumerate() {
             let ct_value = letter_into_value(&ct.0[i]);
-            pt.0.push(value_into_letter(&(LetterValue::new((((i16::from(ct_value) - i16::from(*k) - 1).rem_euclid(26)) + 1) as u8).unwrap())));
+            pt.0.push(value_into_letter(
+                &(LetterValue::new(
+                    (((i16::from(ct_value) - i16::from(*k) - 1)
+                        .rem_euclid(26)) + 1) as u8)
+                    .unwrap())));
         }
         pt
     }
+
+// --------- TODO - Solitaire Cypher Crate above, below - Move into crate tests  --------------
 
     let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
