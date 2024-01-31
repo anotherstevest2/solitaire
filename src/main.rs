@@ -40,6 +40,7 @@ pub mod sdk;
 // TODO - Figure out how to have the Cards user define the bounding for the values put in the
 //        Table so that Cards can do bounds checking internally - or, get rid of value bounds
 //        checking.
+// TODO - Add tests for In and Out shuffles.
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -266,7 +267,12 @@ impl Cards {
     fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
         for _ in 0..riffle_count {
             // if shuffle noise is off (i.e. 0) use a "perfect" merge
-            *self = self.clone().cut_with_noise(noise).merge(!(u8::from(noise) > 0));
+            let m_type:MergeType;
+            m_type = match u8::from(noise) {
+                0 => MergeType::IN,
+                _ => MergeType::RANDOM,
+            };
+            *self = self.clone().cut_with_noise(noise).merge(m_type);
         }
     }
 
@@ -434,15 +440,21 @@ impl fmt::Display for Cards {
 
 struct TwoStacks (Cards, Cards);
 
+#[derive(PartialEq)]
+enum MergeType {
+    IN,
+    OUT,
+    RANDOM,
+}
 impl TwoStacks {
-    fn merge(self, perfect: bool) -> Cards {
+    fn merge(self, m_type: MergeType) -> Cards {
         let TwoStacks(mut top, mut bottom) = self;
         let mut cards = Cards::default();
         let mut rng = rand::thread_rng();
         for _ in 0..(&top.0.len() + &bottom.0.len()) {
             let first_try: &mut Vec<Card>;
             let then_try: &mut Vec<Card>;
-            if perfect || rng.gen() {
+            if (m_type == MergeType::IN) || (m_type == MergeType::RANDOM && rng.gen()) {
                 first_try = &mut top.0;
                 then_try = &mut bottom.0;
             } else {
@@ -806,7 +818,7 @@ fn main() -> Result<()> {
     println!();
     println!("Cut point: {}", top.0.len());
     println!();
-    let mut deck = TwoStacks(top, bottom).merge(false);
+    let mut deck = TwoStacks(top, bottom).merge(MergeType::RANDOM);
     println!("after first riffle:");
     println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
