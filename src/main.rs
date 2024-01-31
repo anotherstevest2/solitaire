@@ -265,7 +265,8 @@ impl Cards {
 
     fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
         for _ in 0..riffle_count {
-            *self = self.clone().cut_with_noise(noise).merge();
+            // if shuffle noise is off (i.e. 0) use a "perfect" merge
+            *self = self.clone().cut_with_noise(noise).merge(!(u8::from(noise) > 0));
         }
     }
 
@@ -434,14 +435,14 @@ impl fmt::Display for Cards {
 struct TwoStacks (Cards, Cards);
 
 impl TwoStacks {
-    fn merge(self) -> Cards {
+    fn merge(self, perfect: bool) -> Cards {
         let TwoStacks(mut top, mut bottom) = self;
-        let mut rng = rand::thread_rng();
         let mut cards = Cards::default();
+        let mut rng = rand::thread_rng();
         for _ in 0..(&top.0.len() + &bottom.0.len()) {
             let first_try: &mut Vec<Card>;
             let then_try: &mut Vec<Card>;
-            if rng.gen() {
+            if perfect || rng.gen() {
                 first_try = &mut top.0;
                 then_try = &mut bottom.0;
             } else {
@@ -453,6 +454,8 @@ impl TwoStacks {
             else if let Some(card) = then_try.pop() {cards.0.push(card)}
             else {panic!("Must have loop counter wrong!");}
         }
+        // act of push cards popped from effectively reverses the order of the resulting deck
+        // which has to be corrected to match actions of a traditional shuffle
         cards.reverse();
         cards
     }
@@ -803,7 +806,7 @@ fn main() -> Result<()> {
     println!();
     println!("Cut point: {}", top.0.len());
     println!();
-    let mut deck = TwoStacks(top, bottom).merge();
+    let mut deck = TwoStacks(top, bottom).merge(false);
     println!("after first riffle:");
     println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
