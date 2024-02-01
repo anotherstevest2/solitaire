@@ -30,9 +30,7 @@ pub mod sdk;
 //        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
 //        not using it right.  and it might be best to make a "raw_value" method for all of them
 //        and always do the math with a raw value and create a new bounded value with the result.
-// TODO - Modify merge so it can be either perfect or random
 // TODO - Ensure all works with up to six decks of cards
-// TODO - Add a Card trait for next value in sequence with bool indicating if wrap-around enabled
 // TODO - Also add trait or whatever so that user can define their own custom deck
 //        May have to distinguish sequence value from score (point?) value
 // TODO - Rethink bounded for card values as they could be set by users...
@@ -40,7 +38,8 @@ pub mod sdk;
 // TODO - Figure out how to have the Cards user define the bounding for the values put in the
 //        Table so that Cards can do bounds checking internally - or, get rid of value bounds
 //        checking.
-// TODO - Add tests for In and Out shuffles.
+// TODO - Add tests for In and Out shuffles.52 Perfect In or 8 Out shuffles to return to start
+// TODO - Is user required to initilize value table even if the don't use it?
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -212,7 +211,9 @@ struct Cards (
 // hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker A, Joker B
 impl Cards {
     fn new(count: usize, jokers_cnt: JokersPerDeck) -> Cards {
-        assert!(count > 0, "At least one deck is required");
+        if count == 0 {
+            return Cards(vec!());
+        };
 
         let mut deck =
             NEW_DECK_ARR[..=(51 + usize::from(jokers_cnt))].to_vec();
@@ -238,8 +239,8 @@ impl Cards {
         TwoStacks(self.clone(), bottom)
     }
 
-    // noise == 0 => exact cut after first half(even count) or
-    // 50/50 chance of the middle card (out count) in the first or
+    // noise == 0 => exact cut after first half (even count) or
+    // 50/50 chance of the middle card (odd count) in the first or
     // second half of the cut.
     // for noise in 1 - 10 (inclusive) cut location is a normal 
     // distribution with mean at the center point and Variance approximately
@@ -248,25 +249,32 @@ impl Cards {
     // the cut point is the index of the card after which we will cut -
     // A cut point of 0 means the whole goes after the cut
     fn cut_with_noise(self, noise: NoiseLevel) -> TwoStacks {
-        let count: f64 = self.0.len() as f64;
-        let noise: i16 = noise.into();
-        let noise: f64 = noise.into();
-        let sd = 1.0 + (noise - 1.0) * (f64::sqrt(count) - 1.0)/9.0;
-        //  can panic if sd calc above broken which leads to a non-finite number
-        let normal = Normal::new(count/2.0, sd).unwrap();
-        let cut_point = normal.sample(&mut rand::thread_rng());
-        let cut_point = cut_point as isize;
-        let cut_point = match cut_point {
-            cp if cp < 0 => 0,
-            cp if cp > count as isize => count as usize,
-            cp => cp as usize,
-        };
-        self.cut(cut_point)
+        if noise == NoiseLevel::new(0).unwrap() {
+            let count = self.0.len();
+            return self.cut(count/2);
+        } else {
+            let count = self.0.len() as f64;
+            let noise: i16 = noise.into();
+            let noise: f64 = noise.into();
+            let sd = 1.0 + (noise - 1.0) * (f64::sqrt(count) - 1.0) / 9.0;
+            //  can panic if sd calc above broken which leads to a non-finite number
+            let normal = Normal::new(count / 2.0, sd).unwrap();
+            let cut_point = normal.sample(&mut rand::thread_rng());
+            let cut_point = cut_point as isize;
+            let cut_point = match cut_point {
+                cp if cp < 0 => 0,
+                cp if cp > count as isize => count as usize,
+                cp => cp as usize,
+            };
+            self.cut(cut_point)
+        }
     }
 
     fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
         for _ in 0..riffle_count {
-            // if shuffle noise is off (i.e. 0) use a "perfect" merge
+            // if shuffle noise is off (i.e. 0) use a "perfect" IN merge.
+            // A perfect in merge of 52 cards should return deck to it's original state after
+            // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
             let m_type:MergeType;
             m_type = match u8::from(noise) {
                 0 => MergeType::IN,
@@ -276,6 +284,7 @@ impl Cards {
         }
     }
 
+    // Perfectly randomized card ordering
     fn shuffle_fy(&mut self) {  // Fisher-Yates algo from Wikipedia
         let mut rng = rand::thread_rng();
         let n = self.0.len();
@@ -284,7 +293,7 @@ impl Cards {
         }
     }
 
-    // required to init values for all possible cards
+    // required to init values for *all* possible cards
     fn default_value_init() -> HashMap<Card, DefCardValue> {
         let mut values = HashMap::new();
         // can panics if next line broken - illegal value for JokersPerDeck
@@ -297,7 +306,7 @@ impl Cards {
     }
 
     // Rising sequence count metric from numerous sources with modifications for jokers and multiple decks
-    // e.g. "Shuffling Study.pdf" Caedmon.  Note, max length rising sequences include "sequences of just
+    // e.g. "Shuffling Study.pdf" Caedmon.  Note, max length rising sequences include "sequences" of just
     // a single value (not obvious why but that's the way they are counted in the literature...) and
     // the closer the value is to the deck size/2 seems to be the actual metric (bell curve and all that)
     // //https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is
@@ -306,7 +315,6 @@ impl Cards {
     // multiple decks will lead to different values for the same level of shuffling of the one-deck
     // no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
     // Presence of one or Jokers per deck determined by modulo 52 calculation.
-    // Next
     fn shuffle_rs_metric(&self) -> usize {
         let deck_cnt = self.0.len() / 52;
         let mut jokers_per_deck = (self.0.len() % 52) / deck_cnt;
@@ -340,7 +348,6 @@ impl Cards {
     }
 
     fn move_card(&mut self, card: Card, match_index: usize, position_change: isize) -> bool {
-        //let Some(position_start) = self.0.iter().position(|r| *r == card)
         let Some(position_start) = self.0.iter()
             .enumerate()
             .filter_map(|(idx, r)| (*r == card).then(|| idx))
@@ -368,7 +375,6 @@ impl Cards {
 
     fn move_card_circular(&mut self, card: Card, match_index: usize, position_change: isize)
         -> bool {
-        //let Some(position_start) = self.0.iter().position(|r| *r == card)
         let Some(position_start) = self.0.iter()
             .enumerate()
             .filter_map(|(idx, r)| (*r == card).then(|| idx))
@@ -451,10 +457,14 @@ impl TwoStacks {
         let TwoStacks(mut top, mut bottom) = self;
         let mut cards = Cards::default();
         let mut rng = rand::thread_rng();
-        for _ in 0..(&top.0.len() + &bottom.0.len()) {
+        for i in 0..(&top.0.len() + &bottom.0.len()) {
             let first_try: &mut Vec<Card>;
             let then_try: &mut Vec<Card>;
-            if (m_type == MergeType::IN) || (m_type == MergeType::RANDOM && rng.gen()) {
+            // Reminder - we are popping from the bottom of the stacks and later reversing
+            // So an IN merge will result in the last card of the top stack on the bottom
+            if (m_type == MergeType::IN && (i % 2) == 0
+                || m_type == MergeType::OUT && (i % 2) == 1
+                || m_type == MergeType::RANDOM && rng.gen()) {
                 first_try = &mut top.0;
                 then_try = &mut bottom.0;
             } else {
@@ -474,7 +484,7 @@ impl TwoStacks {
 }
 
 trait Value {
-    // required to init values for all possible cards, values must be in range of CardValue
+    // (if used?) required to init values for all possible cards, values must be in range of CardValue
     fn value(&self) -> CardValue;
 }
 
@@ -830,15 +840,21 @@ fn main() -> Result<()> {
     println!();
     deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     deck.shuffle_fy();
-    println!("after ideal shuffle");
+    println!("after fully randomizing shuffle");
     println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
 
-    // check for cut on an empty deck - Panic?, what do we want it to do, return two empties?
+    println!("testing cutting of an empty deck");
     let mut deck = Cards(vec!());
     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(5).unwrap());
     println!("top: {}, bottom: {}", top, bottom);
+
+    println!("\ntesting 52 perfect In shuffles:");
+    let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    deck.shuffle(52, NoiseLevel::new(0).unwrap());
+    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
 
     // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
 
