@@ -460,9 +460,9 @@ impl TwoStacks {
             let then_try: &mut Vec<Card>;
             // Reminder - we are popping from the bottom of the stacks and later reversing
             // So an IN merge will result in the last card of the top stack on the bottom
-            if (m_type == MergeType::IN && (i % 2) == 0
+            if m_type == MergeType::IN && (i % 2) == 0
                 || m_type == MergeType::OUT && (i % 2) == 1
-                || m_type == MergeType::RANDOM && rng.gen()) {
+                || m_type == MergeType::RANDOM && rng.gen() {
                 first_try = &mut top.0;
                 then_try = &mut bottom.0;
             } else {
@@ -844,7 +844,7 @@ fn main() -> Result<()> {
     println!();
 
     println!("testing cutting of an empty deck");
-    let mut deck = Cards(vec!());
+    let deck = Cards(vec!());
     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(5).unwrap());
     println!("top: {}, bottom: {}", top, bottom);
 
@@ -1099,7 +1099,7 @@ fn main() -> Result<()> {
     let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
     let ct_re = Regex::new(r"^Ciphertext: +((([A-Z]{5}+) *)+) *$").unwrap();
     let key_re = Regex::new(r"^Key: +('([a-z]+)'|(<null key>)) *$").unwrap();
-    if let Ok(lines) = read_lines("./sol-test.txt") {
+    if let Ok(lines) = read_lines("./solitaire_cypher/sol-test.txt") {
         println!();
 
         let mut pt: PlainText = PlainText::new();

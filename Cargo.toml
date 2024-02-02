@@ -3,3 +3,5 @@
 members = [
     "solitaire_cypher",
 ]
+
+resolver = "2"
