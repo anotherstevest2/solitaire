@@ -30,16 +30,14 @@ pub mod sdk;
 //        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
 //        not using it right.  and it might be best to make a "raw_value" method for all of them
 //        and always do the math with a raw value and create a new bounded value with the result.
-// TODO - Ensure all works with up to six decks of cards
+// TODO - Add tests including Ensure all works with up to six decks of cards
 // TODO - Also add trait or whatever so that user can define their own custom deck
 //        May have to distinguish sequence value from score (point?) value
 // TODO - Rethink bounded for card values as they could be set by users...
-// TODO - Figure out why my shuffle metric is converging on 19 ish rather than the expected 27...
 // TODO - Figure out how to have the Cards user define the bounding for the values put in the
 //        Table so that Cards can do bounds checking internally - or, get rid of value bounds
 //        checking.
-// TODO - Add tests for In and Out shuffles.52 Perfect In or 8 Out shuffles to return to start
-// TODO - Is user required to initilize value table even if the don't use it?
+// TODO - Is user required to initialize value table even if they don't use it?
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -818,7 +816,7 @@ fn main() -> Result<()> {
 // --------- TODO - Solitaire Cypher Crate above, below - Move into crate tests  --------------
 
     let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-    println!("New deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("New deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
@@ -830,18 +828,18 @@ fn main() -> Result<()> {
     println!();
     let mut deck = TwoStacks(top, bottom).merge(MergeType::RANDOM);
     println!("after first riffle:");
-    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
     deck.shuffle(10, NoiseLevel::new(10).unwrap());
     println!("after 10 more riffles:");
-    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
     deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     deck.shuffle_fy();
     println!("after fully randomizing shuffle");
-    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
 
@@ -852,9 +850,9 @@ fn main() -> Result<()> {
 
     println!("\ntesting 52 perfect In shuffles:");
     let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
-    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
     deck.shuffle(52, NoiseLevel::new(0).unwrap());
-    println!("Deck: {deck}, shuffle_quality: {}", deck.shuffle_rs_metric());
+    println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
 
     // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
 
