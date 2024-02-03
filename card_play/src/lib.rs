@@ -495,4 +495,11 @@ mod tests {
         println!();
     }
 
+    #[test]
+    fn test_raw_values() {
+        let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+        for (i, value) in deck.by_def_raw_values().iter().enumerate() {
+            assert_eq!(usize::from(*value), i + 1, "broken raw value function");
+        }
+    }
 }

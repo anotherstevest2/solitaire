@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::str::FromStr;
 use bounded_integer::BoundedU8;
-//use rand_distr::{Normal, Distribution};
-//use rand::Rng;
 use once_cell::sync::OnceCell;
 use card_play::*;
 use sdk::*;
