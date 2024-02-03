@@ -344,11 +344,27 @@ fn main() -> Result<()> {
     }
 
 // --------- TODO - Solitaire Cypher Crate above, below - Move into crate tests  --------------
+const ITER_COUNT: usize = 1000;
+    let mut metrics = [0usize; ITER_COUNT];
+    for i in 0..ITER_COUNT {
+        let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+        deck.shuffle_fy();
+        metrics[i] = deck.shuffle_rs_metric();
+    }
+    let sum = metrics.iter().sum::<usize>() as f64;
+    let mean = sum / ITER_COUNT as f64;
+    println!("the mean metric of {ITER_COUNT} fy randomized new decks is {mean}");
 
-    let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+
+    let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     println!("New deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
     println!("by default values:\n {:?}", deck.by_def_raw_values());
     println!();
+    deck.reverse();
+    println!("Reversed new deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    println!("by default values:\n {:?}", deck.by_def_raw_values());
+    println!();
+    let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
     println!("After cut top: {top}");
     println!();
@@ -384,8 +400,36 @@ fn main() -> Result<()> {
     deck.shuffle(52, NoiseLevel::new(0).unwrap());
     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
 
-    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
+//  -----------TODO - Mover into Solitaire_Cypher testing
 
+    use std::fs::File;
+    use std::io::{self, BufRead};
+    use std::path::Path;
+    use regex::Regex;
+
+    fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+        where P: AsRef<Path>, {
+        let file = File::open(filename)?;
+        Ok(io::BufReader::new(file).lines())
+    }
+
+    fn remove_whitespace(s: &str) -> String {
+        s.chars().filter(|c|!c.is_whitespace()).collect()
+    }
+
+    fn remove_ticks(s: &str) -> String {
+        s.chars().filter(|c| *c != '\'').collect()
+    }
+
+    fn pad_with_x(s: &str) -> String {
+        let mut s = s.to_string();
+        while s.len() % 5 != 0 {
+            s.push('X');
+        }
+        s
+    }
+
+    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
 
     // let mut spare_new_deck = new_deck.clone();
     //
@@ -599,32 +643,7 @@ fn main() -> Result<()> {
 
     // which repeats for each test.
 
-    use std::fs::File;
-    use std::io::{self, BufRead};
-    use std::path::Path;
-    use regex::Regex;
 
-    fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-        where P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        Ok(io::BufReader::new(file).lines())
-    }
-
-    fn remove_whitespace(s: &str) -> String {
-        s.chars().filter(|c|!c.is_whitespace()).collect()
-    }
-
-    fn remove_ticks(s: &str) -> String {
-        s.chars().filter(|c| *c != '\'').collect()
-    }
-
-    fn pad_with_x(s: &str) -> String {
-        let mut s = s.to_string();
-        while s.len() % 5 != 0 {
-            s.push('X');
-        }
-        s
-    }
 
     let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
     let ct_re = Regex::new(r"^Ciphertext: +((([A-Z]{5}+) *)+) *$").unwrap();

@@ -165,8 +165,11 @@ impl Card {
         };
         // can panic if value table or value bounds code broken
         if u8::from(self.default_value())  < u8::from(last_val_in_new_deck) {
-            DefCardValue::new(u8::from(self.default_value()) +1).unwrap()
-        } else {
+            DefCardValue::new(u8::from(self.default_value()) + 1).unwrap()
+        } else {  // to handle multiple decks, we allow wrap-around 54->1
+            // which means a reversed new deck will find one sequence of two values
+            // consisting of the first (joker with value of 54) then the last card
+            // (an Ace of Hearts with a value of 1)
             DefCardValue::new(1).unwrap()
         }
     }
@@ -289,7 +292,25 @@ impl Cards {
         }
     }
 
-    // required to init values for *all* possible cards
+    fn in_shuffle(&mut self, riffle_count: usize) {
+        let deck_size = self.0.len();
+        assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+        for _ in 0..riffle_count {
+            // A perfect in merge of 52 cards should return deck to it's original state after
+            // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
+            *self = self.clone().cut(self.0.len()/2).merge(crate::MergeType::IN);
+        }
+    }
+    fn out_shuffle(&mut self, riffle_count: usize) {
+        let deck_size = self.0.len();
+        assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+        for _ in 0..riffle_count {
+            // A perfect in merge of 52 cards should return deck to it's original state after
+            // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
+            *self = self.clone().cut(self.0.len() / 2).merge(crate::MergeType::OUT);
+        }
+    }
+        // required to init values for *all* possible cards
     fn default_value_init() -> HashMap<Card, DefCardValue> {
         let mut values = HashMap::new();
         // can panics if next line broken - illegal value for JokersPerDeck
@@ -328,13 +349,18 @@ impl Cards {
             }
             let mut this = start;
             for (k, candidate_card) in self.0[i + 1..].iter().enumerate() {
-                if usize::from(candidate_card.default_value()) == usize::from(this.next_def_val_in_sequence(jokers_per_deck)) {
-                    if !in_sequence[i + k + 1] {
-                        in_sequence[i + k + 1] = true;
+                if usize::from((*candidate_card).default_value()) == usize::from((*this).next_def_val_in_sequence(jokers_per_deck)) {
+                    if !in_sequence[i + 1 + k] {
+                        in_sequence[i + 1 + k] = true;
                         this = candidate_card;
                     }
                 }
             }
+        }
+        // Need to also check the very last one as it might be a sequence of one
+        if !in_sequence[self.0.len() - 1] {
+            in_sequence[self.0.len() - 1] = true;
+            n += 1;
         }
         n
     }
@@ -496,10 +522,78 @@ mod tests {
     }
 
     #[test]
-    fn test_raw_values() {
+    fn test_raw_and_default_values() {
         let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
         for (i, value) in deck.by_def_raw_values().iter().enumerate() {
             assert_eq!(usize::from(*value), i + 1, "broken raw value function");
         }
+    }
+
+    #[test]
+    fn test_rs_shuffle_metric_sanity() {
+        let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+        assert_eq!(deck.shuffle_rs_metric(), 1,
+                   "New deck did not net rs_metric of 1");
+        deck.reverse();
+        assert_eq!(deck.shuffle_rs_metric(), 53,
+                   "New reversed deck did not get rs_metric of 53");
+        deck.reverse();
+        deck.shuffle(1, NoiseLevel::new(0).unwrap());
+        assert_eq!(deck.shuffle_rs_metric(), 2,
+                   "New deck after one noiseless shuffle did not get rs_metric of 2");
+        deck.reverse();
+        assert_eq!(deck.shuffle_rs_metric(), 52,
+                   "New noiseless shuffle, reversed did not get rs_metric of 52");
+    }
+
+    #[test]
+    fn test_rs_metric_and_fs_shuffle_statistics() {
+        const ITER_COUNT: usize = 1000;
+        let mut metrics = [0usize; ITER_COUNT];
+        let mut deck_size: usize = 0;
+        for i in 0..ITER_COUNT {
+            let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+            deck_size = deck.0.len();
+            assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+            deck.shuffle_fy();
+            metrics[i] = deck.shuffle_rs_metric();
+        }
+        let sum = metrics.iter().sum::<usize>() as f64;
+        let mean = sum / ITER_COUNT as f64;
+        // round to nearest whole number
+        assert_eq!((mean + 0.5) as usize, deck_size/2);
+    }
+
+    #[test]
+    fn test_riffle_shuffles_and_fs_shuffle_statistics() {
+        const ITER_COUNT: usize = 1000;
+        let mut metrics = [0usize; ITER_COUNT];
+        let mut deck_size: usize = 0;
+        for i in 0..ITER_COUNT {
+            let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+            deck_size = deck.0.len();
+            assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+            deck.shuffle(12, NoiseLevel::new(5).unwrap());
+            metrics[i] = deck.shuffle_rs_metric();
+        }
+        let sum = metrics.iter().sum::<usize>() as f64;
+        let mean = sum / ITER_COUNT as f64;
+        // round to nearest whole number
+        assert_eq!((mean + 0.5) as usize, deck_size/2);
+    }
+
+    #[test]
+    fn test_in_out_shuffles() {
+        let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+        let reference_deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+        let deck_size = deck.0.len();
+        assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+        deck.in_shuffle(8);
+        assert_ne!(deck, reference_deck);
+        deck.in_shuffle(deck_size - 8);
+        assert_eq!(deck, reference_deck);
+        let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+        deck.out_shuffle(8);
+        assert_eq!(deck, reference_deck);
     }
 }
