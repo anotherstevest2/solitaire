@@ -36,6 +36,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78a6932c88f1d2c29533a3b8a5f5a2f84cc19c3339b431677c3160c5c2e6ca85"
 
 [[package]]
+name = "card_play"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bounded-integer",
+ "dotenvy",
+ "lazy_static",
+ "log",
+ "once_cell",
+ "pretty_env_logger",
+ "rand",
+ "rand_distr",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -255,11 +270,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "solitaire-cypher"
+name = "solitaire_cypher"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "bounded-integer",
+ "card_play",
  "dotenvy",
  "lazy_static",
  "log",
