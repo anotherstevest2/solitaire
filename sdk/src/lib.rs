@@ -5,7 +5,7 @@ pub use dotenvy;
 // pub use lazy_static::lazy_static;
 pub use pretty_env_logger;
 
-pub fn init() {
+pub fn sdk_init() {
     dotenvy::dotenv().expect(".env file not found");
     pretty_env_logger::init();
 }

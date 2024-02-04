@@ -6,8 +6,6 @@ use rand_distr::{Normal, Distribution};
 use once_cell::sync::OnceCell;
 use sdk::*;
 
-pub mod sdk;
-
 // TODO - import and refactor to use anyhow for error handling, and maybe also use thiserror to
 //        enable use of #[derive(Error, Debug)] for any custom errors.
 // TODO - (Don't, as deref should only be implemented for pointers)

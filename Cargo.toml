@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "sdk",
     "solitaire_cypher",
     "card_play"
 ]
