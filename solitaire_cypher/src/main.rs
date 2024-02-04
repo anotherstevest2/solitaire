@@ -7,8 +7,8 @@ use solitaire_cypher::*;
 
 fn main() -> Result<()> {
     sdk_init();
-    VALUES.get_or_init(|| {value_init()});
 
+    // screw around with logging...
     println!();
     trace!("a trace example");
     debug!("deboogging");
@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     warn!("o_O");
     error!("boom");
 
-// --------- TODO - Solitaire Cypher Crate above, below - Move into crate tests  --------------
+    // Manual tests of card_play
 const ITER_COUNT: usize = 1000;
     let mut metrics = [0usize; ITER_COUNT];
     for i in 0..ITER_COUNT {
@@ -75,6 +75,7 @@ const ITER_COUNT: usize = 1000;
 
 //  -----------TODO - Mover into Solitaire_Cypher testing
 
+    // Manual tests of solitaire_cypher
     use std::fs::File;
     use std::io::{self, BufRead};
     use std::path::Path;
@@ -101,6 +102,11 @@ const ITER_COUNT: usize = 1000;
         }
         s
     }
+
+    // ----------- TODO - Move the internal cypher operation tests into the solitaire_cypher crate
+    // ----------- TODO - Reconfigure use etc. so that most of card_play is not exposed and wrap
+    // -----------        What make sense for users of the Cypher code for availability via the
+    // -----------        cypher crate
 
     // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
 

@@ -34,6 +34,7 @@ use sdk::*;
 //        Table so that Cards can do bounds checking internally - or, get rid of value bounds
 //        checking.
 // TODO - Is user required to initialize value table even if they don't use it?
+// TODO - Reorganize and add tests to have: unit tests, integration tests and documentation tests.
 
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
