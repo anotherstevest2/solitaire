@@ -231,10 +231,23 @@ const ITER_COUNT: usize = 1000;
 
 
     println!("\ntwelveth vector test:");
-    let mut new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
-    new_deck = key_deck_from_passphrase(&passphrase);
-    let mut spare_deck = new_deck.clone();
+    let new_deck = key_deck_from_passphrase(&passphrase);
+    let spare_deck = new_deck.clone();
+    let pt = PlainText::from_str("SOLITAIRE").unwrap();
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+    println!("key: {}, pt: {}, ks: {}", passphrase.to_string(), pt.to_string(), ks.to_string());
+    println!("ct: {:?}", ct.to_string());
+
+    let ks = get_key_stream(spare_deck, pt.0.len());
+    let pt = decrypt(&ct, &ks);
+    println!("pt: {:?}", pt.to_string());
+
+    println!("\nFrom Book:");
+    let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+    let new_deck = key_deck_from_passphrase(&passphrase);
+    let spare_deck = new_deck.clone();
     let pt = PlainText::from_str("SOLITAIRE").unwrap();
     let ks = get_key_stream(new_deck, pt.0.len());
     let ct = encrypt(&pt, &ks);
