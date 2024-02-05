@@ -1,3 +1,10 @@
+//! # Solitaire Cypher
+//!
+//! an implementation of the playing card based cypher created by
+//! Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon
+//! See: https://www.schneier.com/academic/solitaire/ and, of course, read Cryptonomicon!
+
+
 // TODO - enhance to/from string for cypher and plain text to remove white space when not string
 //        add a space every five chars when going to string.
 
@@ -327,7 +334,8 @@ fn next_deck_state(mut key_deck: Cards) -> Cards {
     bottom.clone()
 }
 
-/// Create a key deck from a Passphrase (aka key)
+/// Create a key deck from a Passphrase (aka key).  This follows the basic algorithm in that it does
+/// not include the "Optional step".
 ///
 /// # Examples
 /// ```

@@ -1,3 +1,10 @@
+//! # Card Play
+//!
+//! A set of types and functions for manipulating playing cards (common french-suited with or
+//! without jokers). Support for cutting, merging, both human style and fully random shuffles,
+//! measuring shuffle quality (rising sequence based), drawing cards, moving cards in a deck
+//! etc.
+
 use std::fmt;
 use std::collections::HashMap;
 use bounded_integer::BoundedU8;
