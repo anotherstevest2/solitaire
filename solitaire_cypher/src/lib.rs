@@ -64,6 +64,10 @@ impl PlainText {
         }
         s
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl FromStr for PlainText {
@@ -114,6 +118,10 @@ impl CypherText {
         }
         s
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl FromStr for CypherText {
@@ -157,6 +165,10 @@ impl Passphrase {
             s.push(u8::from(*c) as char);
         }
         s
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -206,6 +218,10 @@ impl KeyStream {
             s.push(u8::from(*c) as char);
         }
         s
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -344,10 +360,6 @@ pub fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
     deck
 }
 
-//  TODO - Maybe refactor KeyStream to be letters and implement .to_str so that
-//         A meaningful assert can be used and so the user-visible keystream
-//         in the the expected form.
-
 /// Create a KeyStream of the specified length from a Card deck
 ///
 /// Examples
@@ -420,22 +432,18 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     ct
 }
 
-/// Decrypt CypherText into CypherText using the given KeyStream
+/// Decrypt CypherText into PlainText using the given KeyStream
 ///
 /// Examples
 /// ```
 /// use std::str::FromStr;
-/// use solitaire_cypher::{decrypt, encrypt, get_key_stream, key_deck_from_passphrase, pad_with_x, Passphrase, PlainText};
+/// use solitaire_cypher::{CypherText, decrypt, encrypt, get_key_stream, key_deck_from_passphrase, pad_with_x, Passphrase, PlainText};
+/// let ct = CypherText::from_str("KIRAK SFJAN").unwrap();
 /// let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
 /// let mut key_deck = key_deck_from_passphrase(&passphrase);
-/// let mut key_deck_copy = key_deck.clone();
-/// let pt = PlainText::from_str("SOLITAIRE").unwrap();
-/// let ks = get_key_stream(key_deck, pt.0.len());
-/// let ct = encrypt(&pt, &ks);
-/// assert_ne!(pt.to_string(), ct.to_string());
-/// let ks = get_key_stream(key_deck_copy, pt.0.len());
+/// let ks = get_key_stream(key_deck, ct.len());
 /// let recovered_pt = decrypt(&ct, &ks);
-/// assert_eq!(pt.to_string(), recovered_pt.to_string());
+/// assert_eq!("SOLITAIREX", recovered_pt.to_string());
 /// ```
 pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
 
