@@ -1,3 +1,6 @@
+// TODO - enhance to/from string for cypher and plain text to remove white space when not string
+//        add a space every five chars when going to string.
+
 // ----------------- TODO - Cards crate above, Solitaire Cypher Crate Below ----------------------
 // When refactoring - consider doing newtype pattern on Bounded variables so that from can be
 // defined.
@@ -19,32 +22,32 @@ trait Value {
 
 pub type UpperLetter = BoundedU8<65, 90>;
 
-pub fn letter_into_value(ul: &UpperLetter) -> LetterValue {
+fn letter_into_value(ul: &UpperLetter) -> LetterValue {
     // can panic if UpperLetter bounds code or next line broken
     LetterValue::new(u8::from(*ul) - 64).unwrap()
 }
 
-pub fn value_into_letter(lv: &LetterValue) -> UpperLetter {
+fn value_into_letter(lv: &LetterValue) -> UpperLetter {
     // can panic if UpperLetter bounds code or next line broken
     UpperLetter::new(u8::from(*lv) + 64).unwrap()
 }
 
-pub type LetterValue = BoundedU8<1, 26>;
+type LetterValue = BoundedU8<1, 26>;
 
-pub type CardValue = BoundedU8<1, 53>;
+type CardValue = BoundedU8<1, 53>;
 
-pub fn card_val_into_position(cv: &CardValue) -> CardPosition {
+fn card_val_into_position(cv: &CardValue) -> CardPosition {
     // can panic if value vs position bounds broken (value bounds must be >= position)
     CardPosition::new(u8::from(*cv)).unwrap()
 }
 
-pub fn card_val_into_let_val(cv: CardValue) -> LetterValue {
+fn card_val_into_let_val(cv: CardValue) -> LetterValue {
     // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
     // can panic if the next line broken
     LetterValue::new((u8::from(cv) - 1) % 26 + 1).unwrap()
 }
 
-pub type CardPosition = BoundedU8<1, 54>;
+type CardPosition = BoundedU8<1, 54>;
 
 #[derive(Debug, Clone)]
 pub struct PlainText (pub Vec<UpperLetter>);
@@ -54,7 +57,7 @@ impl PlainText {
         PlainText(Vec::new())
     }
 
-    pub fn pt_to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut s = String::new();
         for c in self.0.iter() {
             s.push(u8::from(*c) as char);
@@ -63,6 +66,8 @@ impl PlainText {
     }
 }
 
+// TODO - Refactor to move the X padding to the creation of PlainText and cleanup the
+//        associated tests and documentation
 impl FromStr for PlainText {
     type Err = Infallible;
 
@@ -85,7 +90,7 @@ impl CypherText {
         CypherText(Vec::new())
     }
 
-    pub fn ct_to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut s = String::new();
         for c in self.0.iter() {
             s.push(u8::from(*c) as char);
@@ -113,11 +118,11 @@ impl FromStr for CypherText {
 pub struct Passphrase (pub Vec<UpperLetter>);
 
 impl Passphrase {
-    pub fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
+    fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
     }
 
-    pub fn pp_to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut s = String::new();
         for c in self.0.iter() {
             s.push(u8::from(*c) as char);
@@ -129,13 +134,27 @@ impl Passphrase {
 impl FromStr for Passphrase {
     type Err = &'static str;
 
+    // TODO - Learn why the following doc test isn't actually run and it is ok implement
+    //        a trait the type special behavior (i.e. Err on non-letters)
+/// Creates a Passphrase from a slice of letters - all lower case letters mapped to upper during
+/// creation.
+///
+/// returns Err string if non-letters are encountered in the slice
+///
+/// # Examples
+/// ```
+/// use std::str::FromStr;
+/// use solitaire_cypher::Passphrase;
+/// assert!(Passphrase::from_str("cryptoNOMicon").is_ok());
+/// assert!(Passphrase::from_str("crypto NOMicon").is_err());
+/// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut pp = Passphrase(Vec::new());
         for letter in s.to_uppercase().bytes() {
             if let Some(l) = UpperLetter::new(letter) {
                 pp.0.push(l);
             } else {
-                return Err("string contains non-upper");
+                return Err("string contains non-letter");
             }
         }
         Ok(pp)
@@ -148,7 +167,7 @@ impl KeyStream {
     pub fn new() -> KeyStream {
         KeyStream(Vec::new())
     }
-    pub fn ks_to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut s = String::new();
         for c in self.0.iter() {
             s.push_str(&(u8::from(*c).to_string()));
@@ -158,7 +177,7 @@ impl KeyStream {
     }
 }
 
-pub static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
+static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 
 impl Value for Card {
     fn value(&self) -> CardValue {
@@ -167,7 +186,7 @@ impl Value for Card {
     }
 }
 
-pub fn value_init() -> HashMap<Card, CardValue> {
+fn value_init() -> HashMap<Card, CardValue> {
     let mut values = HashMap::new();
     // can panics if next line broken - illegal value for JokersPerDeck
     let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
@@ -184,7 +203,7 @@ pub fn value_init() -> HashMap<Card, CardValue> {
 }
 
 
-pub fn next_deck_state(mut key_deck: Cards) -> Cards {
+fn next_deck_state(mut key_deck: Cards) -> Cards {
     // A Joker move
     assert!(key_deck.move_card_circular(Card::Joker(JokerId::A), 0, 1));
     // B Joker move
@@ -233,6 +252,16 @@ pub fn next_deck_state(mut key_deck: Cards) -> Cards {
     bottom.clone()
 }
 
+/// Create a key deck from a Passphrase (aka key)
+///
+/// # Examples
+/// ```
+/// use std::str::FromStr;
+/// use solitaire_cypher::{key_deck_from_passphrase, Passphrase};
+/// let passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+/// let keyed_deck = key_deck_from_passphrase(&passphrase);
+/// ```
+///
 pub fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
     // can panic if code broken - next line uses illegal joker count
     let mut deck = Cards::new(1,JokersPerDeck::new(2).unwrap());
@@ -256,6 +285,20 @@ pub fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
     deck
 }
 
+//  TODO - Maybe refactor KeyStream to be letters and implement .to_str so that
+//         A meaningful assert can be used and so the user-visible keystream
+//         in the the expected form.
+
+/// Create a KeyStream of the specified length from a Card deck
+///
+/// Examples
+/// ```
+/// use card_play::{Cards, JokersPerDeck};
+/// use solitaire_cypher::get_key_stream;
+/// let deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // un-keyed deck example
+/// let len = 10; // should be at least as long as the text being encrypted/decrypted
+/// let ks = get_key_stream(deck, len);
+/// ```
 pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
     let mut key_deck = key_deck;
     let mut key_stream = KeyStream::new();
@@ -289,6 +332,20 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
     key_stream
 }
 
+/// Encrypt PlainText into CypherText using the given KeyStream
+///
+/// Examples
+/// ```
+/// use std::str::FromStr;
+/// use solitaire_cypher::{encrypt, get_key_stream, key_deck_from_passphrase, Passphrase, PlainText};
+/// let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+/// let key_deck = key_deck_from_passphrase(&passphrase);
+/// let mut spare_deck = key_deck.clone();
+/// let pt = PlainText::from_str("SOLITAIRE").unwrap();
+/// let ks = get_key_stream(key_deck, pt.0.len());
+/// let ct = encrypt(&pt, &ks);
+/// assert_ne!(pt.to_string(), ct.to_string());
+/// ```
 pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     if pt.0.len() > ks.0.len() {
         panic!("KeyStream not long enough");
@@ -311,6 +368,24 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     ct
 }
 
+/// Decrypt CypherText into CypherText using the given KeyStream
+///
+/// Examples
+/// ```
+/// use std::str::FromStr;
+/// use solitaire_cypher::{decrypt, encrypt, get_key_stream, key_deck_from_passphrase, pad_with_x, Passphrase, PlainText};
+/// let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+/// let mut key_deck = key_deck_from_passphrase(&passphrase);
+/// let mut key_deck_copy = key_deck.clone();
+/// let pt = PlainText::from_str("SOLITAIRE").unwrap();
+/// let ks = get_key_stream(key_deck, pt.0.len());
+/// let ct = encrypt(&pt, &ks);
+/// assert_ne!(pt.to_string(), ct.to_string());
+/// let ks = get_key_stream(key_deck_copy, pt.0.len());
+/// let recovered_pt = decrypt(&ct, &ks);
+/// let padded_pt = pad_with_x(&pt.to_string());
+/// assert_eq!(padded_pt, recovered_pt.to_string());
+/// ```
 pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
 
     if ct.0.len() > ks.0.len() {
@@ -329,3 +404,87 @@ pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
     pt
 }
 
+pub fn pad_with_x(s: &str) -> String {
+    let mut s = s.to_string();
+    while s.len() % 5 != 0 {
+        s.push('X');
+    }
+    s
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::io::{self, BufRead};
+    use std::path::Path;
+    use regex::Regex;
+    use super::*;
+
+    # [test]
+    // Open the file of test vectors "sol-test.txt" and run all the enclosed tests
+    // Example (repeating) file format:
+
+    // Plaintext:  AAAAAAAAAAAAAAA
+    // Key: <null key>
+    // Output: 4 49 10 53 24 8 51 44 6 4 33 20 39 19 34 42
+    // Ciphertext: EXKYI ZSGEH UNTIQ
+    //
+    // which repeats for each test.
+    fn test_vectors_from_wiki() {
+        let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
+        let ct_re = Regex::new(r"^Ciphertext: +((([A-Z]{5}+) *)+) *$").unwrap();
+        let key_re = Regex::new(r"^Key: +('([a-z]+)'|(<null key>)) *$").unwrap();
+        if let Ok(lines) = read_lines("./sol-test.txt") {
+            let mut pt: PlainText = PlainText::new();
+            let mut pp: Passphrase = Passphrase::from_str("").unwrap();
+            let mut ct: CypherText;
+            let mut key_deck: Cards;
+            let mut ks: KeyStream;
+
+            for line in lines.flatten() {
+                if let Some(pt_str) = pt_re.captures(&line) {
+                    pt = PlainText::from_str(&pt_str[1]).unwrap();
+                } else if let Some(pp_str) = key_re.captures(&line) {
+                    if let Ok(ppp) = Passphrase::from_str(&remove_ticks(&pp_str[1])) {
+                        pp = ppp;
+                    } else {
+                        pp = Passphrase::from_str("").unwrap();
+                    }
+                } else if let Some(ct_str) = ct_re.captures(&line) {
+                    ct = CypherText::from_str(&remove_whitespace(&ct_str[1])).unwrap();
+
+                    key_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+                    if pp.0.len() > 0 {
+                        key_deck = key_deck_from_passphrase(&pp);
+                    }
+                    ks = get_key_stream(key_deck, pt.0.len());
+                    let computed_ct = encrypt(&pt, &ks);
+                    let computed_ct_str = computed_ct.to_string();
+                    let ct_str = ct.to_string();
+                    assert_eq!(computed_ct_str, ct_str);
+                    let computed_pt = decrypt(&ct, &ks);
+                    let computed_pt_str = computed_pt.to_string();
+                    let pt_str = pad_with_x(&pt.to_string());
+                    assert_eq!(computed_pt_str, pt_str);
+                }
+            }
+        } else {
+            println!("Failed to open test file");
+        }
+
+    }
+    fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+        where P: AsRef<Path>, {
+        let file = File::open(filename)?;
+        Ok(io::BufReader::new(file).lines())
+    }
+
+    fn remove_whitespace(s: &str) -> String {
+        s.chars().filter(|c|!c.is_whitespace()).collect()
+    }
+
+    fn remove_ticks(s: &str) -> String {
+        s.chars().filter(|c| *c != '\'').collect()
+    }
+
+}

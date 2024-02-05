@@ -8,7 +8,7 @@ use solitaire_cypher::*;
 fn main() -> Result<()> {
     sdk_init();
 
-    // screw around with logging...
+    // screw around with logging... TODO: Do we want to add any for real?
     println!();
     trace!("a trace example");
     debug!("deboogging");
@@ -76,33 +76,6 @@ const ITER_COUNT: usize = 1000;
 //  -----------TODO - Mover into Solitaire_Cypher testing
 
     // Manual tests of solitaire_cypher
-    use std::fs::File;
-    use std::io::{self, BufRead};
-    use std::path::Path;
-    use regex::Regex;
-
-    fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-        where P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        Ok(io::BufReader::new(file).lines())
-    }
-
-    fn remove_whitespace(s: &str) -> String {
-        s.chars().filter(|c|!c.is_whitespace()).collect()
-    }
-
-    fn remove_ticks(s: &str) -> String {
-        s.chars().filter(|c| *c != '\'').collect()
-    }
-
-    fn pad_with_x(s: &str) -> String {
-        let mut s = s.to_string();
-        while s.len() % 5 != 0 {
-            s.push('X');
-        }
-        s
-    }
-
     // ----------- TODO - Move the internal cypher operation tests into the solitaire_cypher crate
     // ----------- TODO - Reconfigure use etc. so that most of card_play is not exposed and wrap
     // -----------        What make sense for users of the Cypher code for availability via the
@@ -257,119 +230,24 @@ const ITER_COUNT: usize = 1000;
 
 
 
-    // println!("First vector test:");
-    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
-    // let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
-    // let ks = get_key_stream(new_deck, pt.0.len());
-    // let ct = encrypt(&pt, &ks);
-    // println!("key: <null key>, pt: {}, ks: {}", pt.pt_to_string(), ks.ks_to_string());
-    // println!("ct: {:?}", ct.ct_to_string());
-    //
-    // println!("Second vector test:");
-    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
-    // let passphrase: Passphrase = Passphrase::from_str("f").unwrap();
-    // new_deck = key_deck_from_passphrase(&passphrase);
-    // let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
-    // let ks = get_key_stream(new_deck, pt.0.len());
-    // let ct = encrypt(&pt, &ks);
-    // println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
-    // println!("ct: {:?}", ct.ct_to_string());
-    //
-    // println!("third vector test:");
-    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
-    // let passphrase: Passphrase = Passphrase::from_str("fo").unwrap();
-    // new_deck = key_deck_from_passphrase(&passphrase);
-    // let pt = PlainText::from_str("AAAAAAAAAAAAAAA").unwrap();
-    // let ks = get_key_stream(new_deck, pt.0.len());
-    // let ct = encrypt(&pt, &ks);
-    // println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
-    // println!("ct: {:?}", ct.ct_to_string());
-    //
-    // println!("eleventh vector test:");
-    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
-    // let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
-    // new_deck = key_deck_from_passphrase(&passphrase);
-    // let pt = PlainText::from_str("AAAAAAAAAAAAAAAAAAAAAAAAA").unwrap();
-    // let ks = get_key_stream(new_deck, pt.0.len());
-    // let ct = encrypt(&pt, &ks);
-    // println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
-    // println!("ct: {:?}", ct.ct_to_string());
-    //
-    // println!("twelveth vector test:");
-    // let mut new_deck = Cards::new(DeckStyle::Jokers, 1);
-    // let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
-    // new_deck = key_deck_from_passphrase(&passphrase);
-    // let mut spare_deck = new_deck.clone();
-    // let pt = PlainText::from_str("SOLITAIRE").unwrap();
-    // let ks = get_key_stream(new_deck, pt.0.len());
-    // let ct = encrypt(&pt, &ks);
-    // println!("key: {}, pt: {}, ks: {}", passphrase.pp_to_string(), pt.pt_to_string(), ks.ks_to_string());
-    // println!("ct: {:?}", ct.ct_to_string());
-    //
-    // let ks = get_key_stream(spare_deck, pt.0.len());
-    // let pt = decrypt(&ct, &ks);
-    // println!("pt: {:?}", pt.pt_to_string());
+    println!("\ntwelveth vector test:");
+    let mut new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+    new_deck = key_deck_from_passphrase(&passphrase);
+    let mut spare_deck = new_deck.clone();
+    let pt = PlainText::from_str("SOLITAIRE").unwrap();
+    let ks = get_key_stream(new_deck, pt.0.len());
+    let ct = encrypt(&pt, &ks);
+    println!("key: {}, pt: {}, ks: {}", passphrase.to_string(), pt.to_string(), ks.to_string());
+    println!("ct: {:?}", ct.to_string());
 
-
-    // Open the file of test vectors "sol-test.txt" and run all the enclosed tests
-    // Example (repeating) file format:
-
-    // Plaintext:  AAAAAAAAAAAAAAA
-    // Key: <null key>
-    // Output: 4 49 10 53 24 8 51 44 6 4 33 20 39 19 34 42
-    // Ciphertext: EXKYI ZSGEH UNTIQ
-    //
-
-    // which repeats for each test.
+    let ks = get_key_stream(spare_deck, pt.0.len());
+    let pt = decrypt(&ct, &ks);
+    println!("pt: {:?}", pt.to_string());
 
 
 
-    let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
-    let ct_re = Regex::new(r"^Ciphertext: +((([A-Z]{5}+) *)+) *$").unwrap();
-    let key_re = Regex::new(r"^Key: +('([a-z]+)'|(<null key>)) *$").unwrap();
-    if let Ok(lines) = read_lines("./sol-test.txt") {
-        println!();
 
-        let mut pt: PlainText = PlainText::new();
-        let mut pp: Passphrase = Passphrase::from_str("").unwrap();
-        let mut ct: CypherText;
-        let mut key_deck: Cards;
-        let mut ks: KeyStream;
-
-        for line in lines.flatten() {
-            if let Some(pt_str) = pt_re.captures(&line) {
-                println!("pt: {:?}", &pt_str[1]);
-                pt = PlainText::from_str(&pt_str[1]).unwrap();
-            } else if let Some(pp_str) = key_re.captures(&line) {
-                 println!("pf: {:?}", remove_ticks(&pp_str[1]));
-                if let Ok(ppp) = Passphrase::from_str(&remove_ticks(&pp_str[1])) {
-                    pp = ppp;
-                } else {
-                    pp = Passphrase::from_str("").unwrap();
-                }
-            } else if let Some(ct_str) = ct_re.captures(&line) {
-                println!("ct: {:?}", remove_whitespace(&ct_str[1]));
-                ct = CypherText::from_str(&remove_whitespace(&ct_str[1])).unwrap();
-
-                key_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-                if pp.0.len() > 0 {
-                    key_deck = key_deck_from_passphrase(&pp);
-                }
-                ks = get_key_stream(key_deck, pt.0.len());
-                let computed_ct = encrypt(&pt, &ks);
-                let computed_ct_str = computed_ct.ct_to_string();
-                let ct_str = ct.ct_to_string();
-                assert_eq!(computed_ct_str, ct_str);
-                let computed_pt = decrypt(&ct, &ks);
-                let computed_pt_str = computed_pt.pt_to_string();
-                let pt_str = pad_with_x(&pt.pt_to_string());
-                assert_eq!(computed_pt_str, pt_str);
-                println!("PASS\n");
-            }
-        }
-    } else {
-        println!("Failed to open test file");
-    }
 
     Ok(())
 }

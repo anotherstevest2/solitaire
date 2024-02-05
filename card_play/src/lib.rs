@@ -515,9 +515,6 @@ mod tests {
         for (i, card) in deck.0.iter().enumerate() {
             assert_eq!(*card, NEW_DECK_ARR[i], "new deck cards don't match ref array");
         }
-        println!("New deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-        println!("by default values:\n {:?}", deck.by_def_raw_values());
-        println!();
     }
 
     #[test]
