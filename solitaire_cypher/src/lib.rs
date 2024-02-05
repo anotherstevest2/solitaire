@@ -238,7 +238,7 @@ impl FromStr for KeyStream {
     /// use solitaire_cypher::KeyStream;
     /// let ks_result = KeyStream::from_str("GibberishLetters");
     /// assert!(ks_result.is_ok());
-    /// println!("KeyStream: {}", ks_result.unwrap().to_string());
+    /// assert_eq!("GIBBE RISHL ETTER S".to_string(), ks_result.unwrap().to_string());
     /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ks = KeyStream(Vec::new());
@@ -437,7 +437,7 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
 /// Examples
 /// ```
 /// use std::str::FromStr;
-/// use solitaire_cypher::{CypherText, decrypt, encrypt, get_key_stream, key_deck_from_passphrase, pad_with_x, Passphrase, PlainText};
+/// use solitaire_cypher::{CypherText, decrypt, encrypt, get_key_stream, key_deck_from_passphrase, Passphrase, PlainText};
 /// let ct = CypherText::from_str("KIRAK SFJAN").unwrap();
 /// let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
 /// let mut key_deck = key_deck_from_passphrase(&passphrase);
@@ -463,13 +463,6 @@ pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
     pt
 }
 
-pub fn pad_with_x(s: &str) -> String {
-    let mut s = s.to_string();
-    while s.len() % 5 != 0 {
-        s.push('X');
-    }
-    s
-}
 fn remove_ticks(s: &str) -> String {
         s.chars().filter(|c| *c != '\'').collect()
     }
