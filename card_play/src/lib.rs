@@ -13,30 +13,9 @@ use rand_distr::{Normal, Distribution};
 use once_cell::sync::OnceCell;
 use sdk::*;
 
-// TODO - import and refactor to use anyhow for error handling, and maybe also use thiserror to
-//        enable use of #[derive(Error, Debug)] for any custom errors.
-// TODO - (Don't, as deref should only be implemented for pointers)
-//        define deref trait so that we don't need the .0 in cards.0.len() etc.
-//        Umm... Cancel the above, for predictability reasons (per the API guidance)
-//        deref should *only* by defined for smart pointers.  Instead, the desired
-//        methods (len, push, pop etc...) should be defined for the newtype
-//        seems non-ideal... or, just keep the destructuring/.0 bit in the usage.
-//        so: in the crate (where visible via an api), implement all the functions
-//        whereas internally, keep the .0 for the new types which don't appear in
-//        the api.
-//        Another Idea:  Create a trait for Newtype Vec which unwraps the newtype to make
-//        All of the methods that work on a vector, work on the newtype.
-// TODO - Need to better understand how to do math with bounded values.  At this point it
-//        appears that some/all math that includes bounded values gets checking whereas
-//        if you extract raw values, do math, create new bounded values it works as expected.
-//        the issue might be just if you are saving to an existing bounded value - and maybe
-//        this is to ensure no out-of-bounds intermediate values but, as it is, I'm clearly
-//        not using it right.  and it might be best to make a "raw_value" method for all of them
-//        and always do the math with a raw value and create a new bounded value with the result.
 // TODO - Add tests including Ensure all works with up to six decks of cards
-// TODO - Also add trait or whatever so that user can define their own custom deck
+// TODO - Maybe... Also add trait or whatever so that user can define their own custom deck
 //        May have to distinguish sequence value from score (point?) value
-// TODO - Rethink bounded for card values as they could be set by users...
 // TODO - Figure out how to have the Cards user define the bounding for the values put in the
 //        Table so that Cards can do bounds checking internally - or, get rid of value bounds
 //        checking.

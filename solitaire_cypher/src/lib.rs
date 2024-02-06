@@ -4,13 +4,6 @@
 //! Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon
 //! See: https://www.schneier.com/academic/solitaire/ and, of course, read Cryptonomicon!
 
-
-// TODO - enhance to/from string for cypher and plain text to remove white space when not string
-//        add a space every five chars when going to string.
-
-// TODO - When refactoring - consider doing newtype pattern on Bounded variables so that from can be
-// defined.
-
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::str::FromStr;
