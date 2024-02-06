@@ -1,6 +1,6 @@
 //! # Card Play
 //!
-//! A set of types and functions for manipulating playing cards (common french-suited with or
+//! A set of types, methods and functions for manipulating playing cards (common french-suited with or
 //! without jokers). Support for cutting, merging, both human style and fully random shuffles,
 //! measuring shuffle quality (rising sequence based), drawing cards, moving cards in a deck
 //! etc.
@@ -152,16 +152,43 @@ pub enum Card {
     Joker(JokerId),
 }
 
-type DefCardValue = BoundedU8<1, 54>;  // default card value
+pub type DefCardValue = BoundedU8<1, 54>;  // default card value
 
 static DEFAULT_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
 
 impl Card {
+
+    /// Obtains the default card value
+    /// Values are assigned 1 - 54 in new deck order. New deck order
+    /// is: Ace-King hearts, Ace-King Clubs, King-Ace Diamonds, King-Ace Spades,
+    /// Joker A, Joker B.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, DefCardValue};
+    /// let ah = &Card::Ace(Suit::Heart);
+    /// let ah_val = ah.default_value();
+    /// assert_eq!(ah_val, DefCardValue::new(1).unwrap());
+    /// ```
     pub fn default_value(&self) -> DefCardValue {
         // can panic if value table init code broken - not all cards included
         *DEFAULT_VALUES.get_or_init(|| {Cards::default_value_init()}).get(self).unwrap()
     }
 
+    /// Obtains the next default card value in the new deck order sequence
+    /// Values are assigned 1 - 54 in new deck order. New deck order
+    /// is: Ace-King hearts, Ace-King Clubs, King-Ace Diamonds, King-Ace Spades,
+    /// Joker A, Joker B.  Note that next value wraps around the end of the
+    /// deck which is identified by the number of Jokers to include in the
+    /// determination
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, DefCardValue, JokersPerDeck};
+    /// let ah = &Card::Two(Suit::Club);
+    /// let ah_val = ah.next_def_val_in_sequence(JokersPerDeck::new(2).unwrap());
+    /// assert_eq!(ah_val, DefCardValue::new(16).unwrap());
+    /// ```
     pub fn next_def_val_in_sequence(&self, jokers_per_deck: JokersPerDeck) -> DefCardValue {
         let last_val_in_new_deck = match i32::from(jokers_per_deck) {
             0 => Card::Ace(Suit::Spade).default_value(),
@@ -215,6 +242,20 @@ pub struct Cards (
 // new deck order (per above):
 // hearts A, 2-K, clubs A, 2-K, Diamonds K-2, A, Spades K-2, A, Joker A, Joker B
 impl Cards {
+
+    /// Create a new set of cards in standard new-deck (Bicycle, USPCC std. etc.)
+    /// order, top down, card faces down, Ace-King hearts, Ace-King Clubs, King-Ace Diamonds,
+    /// King-Ace Spades, Joker A, Joker B.  Number of decks to be included and number of Jokers
+    /// per deck must be specified.  Note that when standard order is discussed in
+    /// the literature as top down, faces up, the order starts with Joker 1, Joker 2, Ace Spades,
+    /// etc. (i.e. Joker A is Joker 2, Joker B is Joker 1). Something to keep in mind.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Cards, JokerId, JokersPerDeck};
+    /// let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    /// assert_eq!(new_deck.len(), 54);
+    /// assert_eq!(*new_deck.look_at(53).unwrap(), Card::Joker(JokerId::B));
     pub fn new(count: usize, jokers_cnt: JokersPerDeck) -> Cards {
         if count == 0 {
             return Cards(vec!());
@@ -236,6 +277,18 @@ impl Cards {
         Cards(deck)
     }
 
+    /// divide a card stack into two stacks with the division before the
+    /// card specified by the index.  Put another way the length of the
+    /// resulting top stack is equal to the index and the card identified
+    /// by the index is the first card of the bottom stack
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Cards, JokersPerDeck, Suit, TwoStacks};
+    /// let new_deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let TwoStacks(top, bottom) = new_deck.cut(52/2);
+    /// assert_eq!(top.len(), bottom.len());
+    /// assert_eq!(*bottom.look_at(0).unwrap(), Card::King(Suit::Diamond));
     pub fn cut(mut self, index: usize) -> TwoStacks {
         if index  >= self.0.len() {
             return TwoStacks(self.clone(), Cards(vec!()));
@@ -244,15 +297,26 @@ impl Cards {
         TwoStacks(self.clone(), bottom)
     }
 
-    // noise == 0 => exact cut after first half (even count) or
-    // 50/50 chance of the middle card (odd count) in the first or
-    // second half of the cut.
-    // for noise in 1 - 10 (inclusive) cut location is a normal
-    // distribution with mean at the center point and Variance approximately
-    // smoothly varying from 1 to the number of cards (i.e. Standard Deviation
-    // = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
-    // the cut point is the index of the card after which we will cut -
-    // A cut point of 0 means the whole goes after the cut
+    /// divide a stack into two stacks with the cut point
+    /// random based on a normal distribution (mean at the
+    /// half point) as follows:
+    /// noise == 0 => exact cut after first half (even count) or
+    /// 50/50 chance of the middle card (odd count) in the first or
+    /// second half of the cut.
+    /// for noise in 1 - 10 (inclusive) cut location is a normal
+    /// distribution with mean at the center point and Variance approximately
+    /// smoothly varying from 1 to the number of cards (i.e. Standard Deviation
+    /// = 1 + (NoiseLevel - 1) * (Sqrt(number of cards))/9)
+    /// the cut point is the index of the card before which we will cut -
+    /// A cut point of 0 means the whole goes after the cut
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck, TwoStacks, NoiseLevel};
+    /// let new_deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let new_deck_len = new_deck.len();
+    /// let TwoStacks(top, bottom) = new_deck.cut_with_noise(NoiseLevel::new(5).unwrap());
+    /// assert!(top.len() + bottom.len() == new_deck_len);
     pub fn cut_with_noise(self, noise: NoiseLevel) -> TwoStacks {
         if noise == NoiseLevel::new(0).unwrap() {
             let count = self.0.len();
@@ -298,7 +362,7 @@ impl Cards {
         }
     }
 
-    fn in_shuffle(&mut self, riffle_count: usize) {
+    pub fn in_shuffle(&mut self, riffle_count: usize) {
         let deck_size = self.0.len();
         assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
         for _ in 0..riffle_count {
@@ -307,7 +371,7 @@ impl Cards {
             *self = self.clone().cut(self.0.len()/2).merge(crate::MergeType::IN);
         }
     }
-    fn out_shuffle(&mut self, riffle_count: usize) {
+    pub fn out_shuffle(&mut self, riffle_count: usize) {
         let deck_size = self.0.len();
         assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
         for _ in 0..riffle_count {
@@ -459,6 +523,10 @@ impl Cards {
     pub fn by_def_raw_values(&self) -> Vec<u8> {
         let values: Vec<u8> = self.0.iter().map(|c| u8::from((*c).default_value())).collect();
         values
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
