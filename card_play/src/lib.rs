@@ -1,7 +1,7 @@
 //! # Card Play
 //!
 //! A set of types, methods and functions for manipulating playing cards (common french-suited with or
-//! without jokers). Support for cutting, merging, both human style and fully random shuffles,
+//! without jokers). Support for cutting, merging, both human style and fully random ordering shuffles,
 //! measuring shuffle quality (rising sequence based), drawing cards, moving cards in a deck
 //! etc.
 
@@ -256,6 +256,7 @@ impl Cards {
     /// let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
     /// assert_eq!(new_deck.len(), 54);
     /// assert_eq!(*new_deck.look_at(53).unwrap(), Card::Joker(JokerId::B));
+    /// ```
     pub fn new(count: usize, jokers_cnt: JokersPerDeck) -> Cards {
         if count == 0 {
             return Cards(vec!());
@@ -289,6 +290,7 @@ impl Cards {
     /// let TwoStacks(top, bottom) = new_deck.cut(52/2);
     /// assert_eq!(top.len(), bottom.len());
     /// assert_eq!(*bottom.look_at(0).unwrap(), Card::King(Suit::Diamond));
+    /// ```
     pub fn cut(mut self, index: usize) -> TwoStacks {
         if index  >= self.0.len() {
             return TwoStacks(self.clone(), Cards(vec!()));
@@ -316,7 +318,8 @@ impl Cards {
     /// let new_deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
     /// let new_deck_len = new_deck.len();
     /// let TwoStacks(top, bottom) = new_deck.cut_with_noise(NoiseLevel::new(5).unwrap());
-    /// assert!(top.len() + bottom.len() == new_deck_len);
+    /// assert_eq!(top.len() + bottom.len(), new_deck_len);
+    /// ```
     pub fn cut_with_noise(self, noise: NoiseLevel) -> TwoStacks {
         if noise == NoiseLevel::new(0).unwrap() {
             let count = self.0.len();
@@ -339,6 +342,17 @@ impl Cards {
         }
     }
 
+    /// perform riffle_count shuffles with a settable level of randomness in both the
+    /// cut point and merge via a NoiseLevel parameter
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck, NoiseLevel};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let ref_deck = deck.clone();
+    /// deck.shuffle(1, NoiseLevel::new(5).unwrap());
+    /// assert_ne!(deck, ref_deck);
+    /// ```
     pub fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
         for _ in 0..riffle_count {
             // if shuffle noise is off (i.e. 0) use a "perfect" IN merge.
@@ -353,7 +367,17 @@ impl Cards {
         }
     }
 
-    // Perfectly randomized card ordering
+    /// perform Fisher-Yates randomization (pick cards at random from origin deck to create
+    /// destination deck) as a shuffle
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let ref_deck = deck.clone();
+    /// deck.shuffle_fy();
+    /// assert_ne!(deck, ref_deck);
+    /// ```
     pub fn shuffle_fy(&mut self) {  // Fisher-Yates algo from Wikipedia
         let mut rng = rand::thread_rng();
         let n = self.0.len();
@@ -362,22 +386,46 @@ impl Cards {
         }
     }
 
+    /// perform perfect "in" shuffle (not random, original deck, if of even length, will reappear
+    /// after shuffle count equal to the number of cards.)
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let ref_deck = deck.clone();
+    /// deck.in_shuffle(1);
+    /// assert_ne!(deck, ref_deck);
+    /// deck.in_shuffle(51);
+    /// assert_eq!(deck, ref_deck);
+    /// ```
     pub fn in_shuffle(&mut self, riffle_count: usize) {
-        let deck_size = self.0.len();
-        assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
         for _ in 0..riffle_count {
             // A perfect in merge of 52 cards should return deck to it's original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
-            *self = self.clone().cut(self.0.len()/2).merge(crate::MergeType::IN);
+            *self = self.clone().cut(self.0.len()/2).merge(MergeType::IN);
         }
     }
+    /// perform perfect "out" shuffle (not random, original 52 card deck, will reappear
+    /// after shuffle count equal to the number of cards.)
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let ref_deck = deck.clone();
+    /// deck.out_shuffle(1);
+    /// assert_ne!(deck, ref_deck);
+    /// deck.out_shuffle(7);
+    /// assert_eq!(deck, ref_deck);
+    /// ```
     pub fn out_shuffle(&mut self, riffle_count: usize) {
         let deck_size = self.0.len();
-        assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+        assert_eq!(deck_size % 2, 0, "code assumption of even sized deck is broken");
         for _ in 0..riffle_count {
             // A perfect in merge of 52 cards should return deck to it's original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
-            *self = self.clone().cut(self.0.len() / 2).merge(crate::MergeType::OUT);
+            *self = self.clone().cut(self.0.len() / 2).merge(MergeType::OUT);
         }
     }
         // required to init values for *all* possible cards
@@ -392,17 +440,30 @@ impl Cards {
         values
     }
 
-    // Rising sequence count metric from numerous sources with modifications for jokers and multiple decks
-    // e.g. "Shuffling Study.pdf" Caedmon.  Note, max length rising sequences include "sequences" of just
-    // a single value (not obvious why but that's the way they are counted in the literature...) and
-    // the closer the value is to the deck size/2 seems to be the actual metric (bell curve and all that)
-    // //https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is
-    // https://drive.google.com/file/d/1EoJhtHAO5iFjikkH35KDVrmmJQpXVb5q/view?usp=sharing
-    // Note that my adaptation for the inclusion of one or more jokers per deck and the use of
-    // multiple decks will lead to different values for the same level of shuffling of the one-deck
-    // no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
-    // Presence of one or Jokers per deck determined by modulo 52 calculation.
-    pub fn shuffle_rs_metric(&self) -> usize {
+    /// Rising sequence count metric (from numerous sources, e.g. "Shuffling Study.pdf" Caedmon)
+    /// with modifications for jokers and multiple decks.  Note, max length rising sequences
+    /// include "sequences" of just a single value (not obvious why but that's the way they are
+    /// counted in the literature...) and the closer the value is to the deck size/2 seems to be the
+    /// actual metric (bell curve and all that):
+    /// //https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is
+    /// https://drive.google.com/file/d/1EoJhtHAO5iFjikkH35KDVrmmJQpXVb5q/view?usp=sharing
+    /// Note that my adaptation for the inclusion of one or more jokers per deck and the use of
+    /// multiple decks will lead to different values for the same level of shuffling of the one-deck
+    /// no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
+    /// Presence of one or Jokers per deck determined by modulo 52 calculation.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck, NoiseLevel};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// assert_eq!(deck.shuffle_rs_metric(), 1);
+    /// deck.shuffle(1, NoiseLevel::new(0).unwrap());
+    /// assert_eq!(deck.shuffle_rs_metric(), 2);
+    /// deck.shuffle_fy();
+    /// // the following will fail a fraction of the time
+    /// // !(deck.shuffle_rs_metric() > 23 && deck.shuffle_rs_metric() < 29);
+    /// ```
+   pub fn shuffle_rs_metric(&self) -> usize {
         let deck_cnt = self.0.len() / 52;
         let mut jokers_per_deck = (self.0.len() % 52) / deck_cnt;
         if jokers_per_deck > 2 {
@@ -435,10 +496,38 @@ impl Cards {
         n
     }
 
+    /// reverse the order of Cards
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, Cards, JokersPerDeck, JokerId};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    /// assert_eq!(*deck.look_at(0).unwrap(), Card::Ace(Suit::Heart));
+    /// deck.reverse();
+    /// assert_eq!(*deck.look_at(0).unwrap(), Card::Joker(JokerId::B));
+    /// ```
     pub fn reverse(&mut self) {
         self.0.reverse();
     }
 
+    /// reposition a specified index of a specified card by a specified number of places
+    /// (i.e. in a multi-deck stack, the second occurrence of the six of hearts would have index 1)
+    /// If the card displacement wraps around the end of the deck, the move from one end to the
+    /// other counts as a one position change.
+    /// returns true if card found in stack, false otherwise.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// assert_eq!(*deck.look_at(5).unwrap(), Card::Six(Suit::Heart));
+    /// assert!(deck.move_card(Card::Six(Suit::Heart), 0, -5));
+    /// assert_eq!(*deck.look_at(0).unwrap(), Card::Six(Suit::Heart));
+    /// assert!(deck.move_card(Card::Six(Suit::Heart), 0, -1));
+    /// assert_eq!(*deck.look_at(51).unwrap(), Card::Six(Suit::Heart));
+    /// assert!(deck.move_card(Card::Six(Suit::Heart), 0, 1));
+    /// assert_eq!(*deck.look_at(0).unwrap(), Card::Six(Suit::Heart));
+    /// ```
     pub fn move_card(&mut self, card: Card, match_index: usize, position_change: isize) -> bool {
         let Some(position_start) = self.0.iter()
             .enumerate()
@@ -447,24 +536,34 @@ impl Cards {
             else {
                 return false;
             };
-        let mut position_end
+        let position_end
             = (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
         let card = self.0.remove(position_start);
 
-        // adjust for vector index offset caused by removing the card
-        if position_end > position_start {
-            position_end += 1;
-        }
-
         // ensure we are still in the range vec insert requires (corner case at end of deck)
-        position_end = position_end.rem_euclid(self.0.len() + 1);
+        // TODO - position_end = position_end.rem_euclid(self.0.len() + 1);
 
         self.0.insert(position_end, card);
 
         true
     }
 
+    /// reposition a specified index of a specified card by a specified number of places
+    /// (i.e. in a multi-deck stack, the first occurrence of the size of the card (say, six of
+    /// hearts, would have an index of 0, the second occurrence would have index 1)
+    /// If the card displacement wraps around the end of the deck, the move from one end to the
+    /// other DOES NOT count as a one position change.
+    /// returns true if card found in stack, false otherwise.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// assert_eq!(*deck.look_at(5).unwrap(), Card::Six(Suit::Heart));
+    /// assert!(deck.move_card_circular(Card::Six(Suit::Heart), 0, -6));
+    /// assert_eq!(*deck.look_at(50).unwrap(), Card::Six(Suit::Heart));
+    /// ```
     pub fn move_card_circular(&mut self, card: Card, match_index: usize, position_change: isize)
                           -> bool {
         let Some(position_start) = self.0.iter()
@@ -496,6 +595,30 @@ impl Cards {
         true
     }
 
+    /// get the index for a cards as an Option<usize>.  None if not found
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, Cards, JokersPerDeck};
+    /// let deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// assert_eq!(deck.find(Card::Five(Suit::Heart)).unwrap(), 4);
+    /// ```
+    pub fn find(&self, card: Card) -> Option<usize> {
+        self.0.iter()
+            .position(|r| (*r == card))
+    }
+
+    /// draw count cards
+    /// Result Err a string indicating more cards were requested
+    /// than are present
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let hand = deck.draw_count(5).unwrap();
+    /// assert_eq!(hand.len(), 5);
+    /// ```
     pub fn draw_count(&mut self, count: usize) -> Result<Cards, String> {
         if count > self.0.len() {
             return Err("Can not draw more than are available".to_string());
@@ -503,16 +626,47 @@ impl Cards {
         Ok(Cards(self.0.drain(0..count).collect()))
     }
 
-    pub fn draw_till(&mut self, card: Card) -> Result<Cards, String> {
-        let count = self.0.iter().position(|r| *r == card).ok_or("Card not found")?;
-        // can panic if index limiting code above broken
-        Ok(self.draw_count(count).unwrap())
+    /// draw all cards preceding that of the card specified.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, JokerId, Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    /// let all_but_one = deck.draw_till(Card::Joker(JokerId::B)).unwrap();
+    /// assert_eq!(all_but_one.len(), 53);
+    /// assert_eq!(*deck.look_at(0).unwrap(), Card::Joker(JokerId::B));
+    /// ```
+    pub fn draw_till(&mut self, card: Card) -> Option<Cards> {
+        let count = self.0.iter().position(|r| *r == card);
+        match count {
+            Some(count) => Some(self.draw_count(count).unwrap()),
+            None => None,
+        }
     }
 
+    /// append a stack to the end
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let mut again = deck.clone();
+    /// deck.append(again);
+    /// assert_eq!(deck.len(), 2 * 52);
+    /// ```
     pub fn append(&mut self, mut cards: Cards) {
         self.0.append(&mut cards.0);
     }
 
+    /// obtain a reference Result to a card at a give index.  Error string if index out of range
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Cards, JokerId, JokersPerDeck};
+    /// let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    /// let card = deck.look_at(52).unwrap();
+    /// assert_eq!(*card, Card::Joker(JokerId::A));
+    /// ```
     pub fn look_at(&self, index: usize) -> Result<&Card, String> {
         if index >= self.0.len() {
             return Err("Index beyond end of Cards".to_string());
@@ -520,11 +674,29 @@ impl Cards {
         Ok(&self.0[index])
     }
 
+    /// Obtain a representation of the Card sequence as a vector of their default values
+    /// (Ace Hearts == 1 through Joker B == 54)
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    /// let deck_values = deck.by_def_raw_values();
+    /// assert_eq!(deck_values[0..5], vec![1, 2, 3, 4, 5]);
+    /// ```
     pub fn by_def_raw_values(&self) -> Vec<u8> {
         let values: Vec<u8> = self.0.iter().map(|c| u8::from((*c).default_value())).collect();
         values
     }
 
+    /// get the length
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Cards, JokersPerDeck};
+    /// let deck = Cards::new(1, JokersPerDeck::new(1).unwrap());
+    /// assert_eq!(deck.len(), 53);
+    /// ```
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -549,6 +721,25 @@ pub enum MergeType {
     RANDOM,
 }
 impl TwoStacks {
+    /// combine the two stacks in TwoStacks into one Cards stack by nominally alternating
+    /// from the stacks starting at the bottom as in a riffle shuffle but with one of three
+    /// different techniques as specified by the MergeType.
+    /// MergeType::RANDOM uses effectively a coin flip to determine which stack goes next
+    /// MergeType::IN starts at the bottom of the top stack and alternates between stacks from then on.
+    /// MergeType::Out starts at the bottom of the bottom stack and alternates between stacks from then on.
+    /// While a perfect faro shuffle (IN or OUT) assumes an equal number of cards in each stack
+    /// the merge method will just keep pulling from the stack that as cards if the other stack has
+    /// been depleted.
+    ///
+    /// # Examples
+    /// ```
+    /// use card_play::{Card, Suit, Cards, JokersPerDeck, MergeType};
+    /// let deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    /// let two_stacks = deck.cut(26);
+    /// let deck = two_stacks.merge(MergeType::IN);
+    /// assert_eq!(*deck.look_at(51).unwrap(), Card::King(Suit::Club));
+    /// assert_eq!(*deck.look_at(50).unwrap(), Card::Ace(Suit::Spade));
+    /// ```
     pub fn merge(self, m_type: MergeType) -> Cards {
         let TwoStacks(mut top, mut bottom) = self;
         let mut cards = Cards::default();
@@ -625,7 +816,7 @@ mod tests {
         for i in 0..ITER_COUNT {
             let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
             deck_size = deck.0.len();
-            assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+            assert_eq!(deck_size % 2, 0, "code assumption of even sized deck is broken");
             deck.shuffle_fy();
             metrics[i] = deck.shuffle_rs_metric();
         }
@@ -643,7 +834,7 @@ mod tests {
         for i in 0..ITER_COUNT {
             let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
             deck_size = deck.0.len();
-            assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+            assert_eq!(deck_size % 2, 0, "code assumption of even sized deck is broken");
             deck.shuffle(12, NoiseLevel::new(5).unwrap());
             metrics[i] = deck.shuffle_rs_metric();
         }
@@ -658,7 +849,7 @@ mod tests {
         let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
         let reference_deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
         let deck_size = deck.0.len();
-        assert!(deck_size % 2 == 0, "code assumption of even sized deck is broken");
+        assert_eq!(deck_size % 2, 0, "code assumption of even sized deck is broken");
         deck.in_shuffle(8);
         assert_ne!(deck, reference_deck);
         deck.in_shuffle(deck_size - 8);

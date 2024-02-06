@@ -295,7 +295,7 @@ fn next_deck_state(mut key_deck: Cards) -> Cards {
     // and swap top with bottom leaving Jokers in place
     // can panic if code broken - required joker not present
     let mut above_fa = key_deck.draw_till(Card::Joker(JokerId::A)).unwrap();
-    if let Ok(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
+    if let Some(above_both) = above_fa.draw_till(Card::Joker(JokerId::B)) {
         // Order is: above_both, FB above_fa, FA key_deck
         // can panic if code broken - location of jokers isn't where expected
         let fb = above_fa.draw_count(1).unwrap();
@@ -305,7 +305,7 @@ fn next_deck_state(mut key_deck: Cards) -> Cards {
         key_deck.append(above_fa);
         key_deck.append(fa);
         key_deck.append(above_both);
-    } else if let Ok(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
+    } else if let Some(mut above_fb) = key_deck.draw_till(Card::Joker(JokerId::B)) {
         // Order is: above_fa, FA above_fb, FB key_deck
         // can panic if code broken - location of jokers isn't where expected
         let fa = above_fb.draw_count(1).unwrap();
