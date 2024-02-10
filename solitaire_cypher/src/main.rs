@@ -1,12 +1,57 @@
+use std::io;
 use std::str::FromStr;
-use card_play::*;
 use sdk::*;
 
 use solitaire_cypher::*;
+use clap::{Args, Parser};
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// Mutually exclusive command flags
+    #[command(flatten)]
+    cmd: Cmd,
+
+    /// passphrase for key generation
+    #[arg(short, long)]
+    passphrase: String,
+}
+
+#[derive(Args)]
+#[group(required = true, multiple = false)]
+struct Cmd {
+    /// Encrypt stdin with keystream generated from passphrase
+    #[arg(short, long)] //
+    encrypt: bool,
+    /// Decrypt stdin with keystream generated from passphrase
+    #[arg(short, long)]
+    decrypt: bool,
+}
 
 fn main() -> Result<()> {
     sdk_init();
+    let encrypting: bool;
+    let cli = Cli::parse();
+    let (enc, dec) = ((&cli.cmd).encrypt, (&cli.cmd).decrypt);
+
+    match (enc, dec) {
+        (true, _) => encrypting = true,
+        (_, true) => encrypting = false,
+        _ => unreachable!(),
+    }
+
+    let stdin = io::read_to_string(io::stdin())?;
+    // TODO - Fix for real user input error handling
+    let key_deck = key_deck_from_passphrase(&Passphrase::from_str(&cli.passphrase).unwrap());
+    let ks = get_key_stream(key_deck, stdin.len());
+    let output: String;
+    if encrypting {
+        output = encrypt(&PlainText::from_str(&stdin).unwrap(), &ks).to_string();
+    } else { // decrypting
+        output = decrypt(&CypherText::from_str(&stdin).unwrap(), &ks).to_string();
+    }
+    println!("{}", output);
+
 
 //     println!();
 //     trace!("a trace example");
@@ -229,33 +274,33 @@ fn main() -> Result<()> {
 
 
 
-    println!("\ntwelveth vector test:");
-    let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
-    let new_deck = key_deck_from_passphrase(&passphrase);
-    let spare_deck = new_deck.clone();
-    let pt = PlainText::from_str("SOLITAIRE").unwrap();
-    let ks = get_key_stream(new_deck, pt.0.len());
-    let ct = encrypt(&pt, &ks);
-    println!("key: {}, pt: {}, ks: {}", passphrase.to_string(), pt.to_string(), ks.to_string());
-    println!("ct: {:?}", ct.to_string());
+    // println!("\ntwelveth vector test:");
+    // let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+    // let pt = PlainText::from_str("SOLITAIRE").unwrap();
+    // let new_deck = key_deck_from_passphrase(&passphrase);
+    // let spare_deck = new_deck.clone();
+    // let ks = get_key_stream(new_deck, pt.0.len());
+    // let ct = encrypt(&pt, &ks);
+    // println!("key: {}, pt: {}, ks: {}", passphrase.to_string(), pt.to_string(), ks.to_string());
+    // println!("ct: {:?}", ct.to_string());
+    //
+    // let ks = get_key_stream(spare_deck, pt.0.len());
+    // let pt = decrypt(&ct, &ks);
+    // println!("pt: {:?}", pt.to_string());
+    //
+    // println!("\nFrom Book:");
+    // let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
+    // let new_deck = key_deck_from_passphrase(&passphrase);
+    // let spare_deck = new_deck.clone();
+    // let pt = PlainText::from_str("SOLITAIRE").unwrap();
+    // let ks = get_key_stream(new_deck, pt.0.len());
+    // let ct = encrypt(&pt, &ks);
+    // println!("key: {}, pt: {}, ks: {}", passphrase.to_string(), pt.to_string(), ks.to_string());
+    // println!("ct: {:?}", ct.to_string());
+    //
+    // let ks = get_key_stream(spare_deck, pt.0.len());
+    // let pt = decrypt(&ct, &ks);
+    // println!("pt: {:?}", pt.to_string());
 
-    let ks = get_key_stream(spare_deck, pt.0.len());
-    let pt = decrypt(&ct, &ks);
-    println!("pt: {:?}", pt.to_string());
-
-    println!("\nFrom Book:");
-    let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
-    let new_deck = key_deck_from_passphrase(&passphrase);
-    let spare_deck = new_deck.clone();
-    let pt = PlainText::from_str("SOLITAIRE").unwrap();
-    let ks = get_key_stream(new_deck, pt.0.len());
-    let ct = encrypt(&pt, &ks);
-    println!("key: {}, pt: {}, ks: {}", passphrase.to_string(), pt.to_string(), ks.to_string());
-    println!("ct: {:?}", ct.to_string());
-
-    let ks = get_key_stream(spare_deck, pt.0.len());
-    let pt = decrypt(&ct, &ks);
-    println!("pt: {:?}", pt.to_string());
-    
     Ok(())
 }
