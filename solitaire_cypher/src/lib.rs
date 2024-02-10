@@ -448,7 +448,7 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
 /// ```
 pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
 
-    if ct.0.len() > ks.0.len() {
+    if ct.0.len() != ks.0.len() {
         panic!("KeyStream not long enough");
     }
 

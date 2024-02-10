@@ -28,6 +28,7 @@ struct Cmd {
     decrypt: bool,
 }
 
+// TODO - thou shall not panic no matter what the user does!
 fn main() -> Result<()> {
     sdk_init();
     let encrypting: bool;
@@ -44,12 +45,15 @@ fn main() -> Result<()> {
     // TODO - Fix for real user input error handling
     let key_deck = key_deck_from_passphrase(&Passphrase::from_str(&cli.passphrase).unwrap());
     let ks = get_key_stream(key_deck, stdin.len());
+    println!("stdin length: {}, keystream length: {}", stdin.len(), ks.len());
     let output: String;
     if encrypting {
         output = encrypt(&PlainText::from_str(&stdin).unwrap(), &ks).to_string();
     } else { // decrypting
         output = decrypt(&CypherText::from_str(&stdin).unwrap(), &ks).to_string();
     }
+    println!("/n encrypting: {}, passphrase: {}, input: {}, output: {}\n",encrypting,
+         &cli.passphrase, stdin, output);
     println!("{}", output);
 
 
