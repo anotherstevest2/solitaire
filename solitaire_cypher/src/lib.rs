@@ -405,6 +405,8 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
 }
 
 /// Encrypt PlainText into CypherText using the given KeyStream
+/// Will panic if KeyStream less than PlainText length rounded
+/// up to the nearest multiple of 5.
 ///
 /// Examples
 /// ```
@@ -415,6 +417,8 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
 /// let ct = encrypt(&pt, &ks);
 /// assert_eq!(ct.to_string(), "OSKJJ JGTMW");
 /// ```
+// TODO - Need to compute cypertext to be multiples of five, extending PlainText by 'X' as
+//        required.
 pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     if pt.0.len() > ks.0.len() {
         panic!("KeyStream not long enough");
@@ -422,12 +426,14 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
 
     let pt = (*pt).clone();
     let mut ct: CypherText = CypherText(vec!());
-    for (i, k) in ks.0.iter().enumerate() {
-        let pt_value = letter_into_value(&pt.0[i]);
+
+    for (i, p) in pt.0.iter().enumerate() {
+        let pt_value = letter_into_value(p);
+        let key_value = letter_into_value(&ks.0[i]);
         // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
         ct.0.push(value_into_letter(
             &(LetterValue::new(
-                ((u8::from(pt_value) + letter_into_value(k) - 1) % 26) + 1)
+                ((u8::from(pt_value) + key_value - 1) % 26) + 1)
                 .unwrap())));
     }
     ct
@@ -448,16 +454,17 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
 /// ```
 pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
 
-    if ct.0.len() != ks.0.len() {
+    if ct.0.len() > ks.0.len() {
         panic!("KeyStream not long enough");
     }
 
     let mut pt: PlainText = PlainText(vec!());
-    for (i, k) in ks.0.iter().enumerate() {
-        let ct_value = letter_into_value(&ct.0[i]);
+    for (i, c) in ct.0.iter().enumerate() {
+        let ct_value = letter_into_value(c);
+        let k_value = letter_into_value(&ks.0[i]);
         pt.0.push(value_into_letter(
             &(LetterValue::new(
-                (((i16::from(ct_value) - i16::from(letter_into_value(k)) - 1)
+                (((i16::from(ct_value) - i16::from(k_value) - 1)
                     .rem_euclid(26)) + 1) as u8)
                 .unwrap())));
     }

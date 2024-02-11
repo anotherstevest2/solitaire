@@ -28,6 +28,9 @@ struct Cmd {
     decrypt: bool,
 }
 
+fn remove_whitespace(s: &mut String) {
+    s.retain(|c| !c.is_whitespace());
+}
 // TODO - thou shall not panic no matter what the user does!
 fn main() -> Result<()> {
     sdk_init();
@@ -41,7 +44,8 @@ fn main() -> Result<()> {
         _ => unreachable!(),
     }
 
-    let stdin = io::read_to_string(io::stdin())?;
+    let mut stdin = io::read_to_string(io::stdin())?;
+    remove_whitespace(&mut stdin);
     // TODO - Fix for real user input error handling
     let key_deck = key_deck_from_passphrase(&Passphrase::from_str(&cli.passphrase).unwrap());
     let ks = get_key_stream(key_deck, stdin.len());
