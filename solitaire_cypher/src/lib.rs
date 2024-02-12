@@ -6,6 +6,8 @@
 
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::fmt;
+use std::fmt::Display;
 use std::str::FromStr;
 use bounded_integer::BoundedU8;
 use once_cell::sync::OnceCell;
@@ -56,20 +58,20 @@ impl PlainText {
         PlainText(Vec::new())
     }
 
-    /// Converts a PlainText into a String
-    // TODO - Implement Display instead which will also create to_string
-    pub fn to_string(&self) -> String {
-        let mut s = String::new();
-        for c in self.0.iter() {
-            s.push(u8::from(*c) as char);
-        }
-        s
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
     pub fn is_empty(&self) -> bool { self.0.is_empty()}
+}
+
+impl Display for PlainText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        for c in self.0.iter() {
+            s.push(u8::from(*c) as char);
+        }
+        write!(f, "{}", s)
+    }
 }
 
 impl FromStr for PlainText {
@@ -109,19 +111,6 @@ impl CypherText {
     pub fn new() -> CypherText {
         CypherText(Vec::new())
     }
-    // TODO - Implement Display instead which will also create to_string
-
-    pub fn to_string(&self) -> String {
-        let mut s = String::new();
-        for (i, c) in self.0.iter().enumerate() {
-            if i != 0 && i % 5 == 0 {
-                s.push(' ');
-            }
-            s.push(u8::from(*c) as char);
-        }
-        s
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -155,6 +144,19 @@ impl FromStr for CypherText {
     }
 }
 
+impl Display for CypherText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        for (i, c) in self.0.iter().enumerate() {
+            if i != 0 && i % 5 == 0 {
+                s.push(' ');
+            }
+            s.push(u8::from(*c) as char);
+        }
+       write!(f, "{}", s)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Passphrase (pub Vec<UpperLetter>);
 
@@ -162,16 +164,6 @@ impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
     }
-    // TODO - Implement Display instead which will also create to_string
-
-    pub fn to_string(&self) -> String {
-        let mut s = String::new();
-        for c in self.0.iter() {
-            s.push(u8::from(*c) as char);
-        }
-        s
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -209,6 +201,16 @@ impl FromStr for Passphrase {
     }
 }
 
+impl Display for Passphrase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::new();
+        for c in self.0.iter() {
+            s.push(u8::from(*c) as char);
+        }
+        write!(f, "{}", s)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct KeyStream (pub Vec<UpperLetter>);
 
@@ -216,7 +218,14 @@ impl KeyStream {
     pub fn new() -> KeyStream {
         KeyStream(Vec::new())
     }
-    pub fn to_string(&self) -> String {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    pub fn is_empty(&self) -> bool{ self.0.is_empty() }
+}
+
+impl Display for KeyStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
         for (i, c) in self.0.iter().enumerate() {
             if i != 0 && i % 5 == 0 {
@@ -224,13 +233,8 @@ impl KeyStream {
             }
             s.push(u8::from(*c) as char);
         }
-        s
+        write!(f, "{}", s)
     }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-    pub fn is_empty(&self) -> bool{ self.0.is_empty() }
 }
 
 impl FromStr for KeyStream {
@@ -239,7 +243,7 @@ impl FromStr for KeyStream {
     /// Creates a KeyStream from a slice of letters - lower case letters are mapped to upper during
     /// creation.
     ///
-    ///
+    ///impl Display for PlainText {
     /// # Examples
     /// ```
     /// use std::str::FromStr;
