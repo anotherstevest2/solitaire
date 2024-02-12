@@ -48,7 +48,7 @@ fn card_val_into_let_val(cv: CardValue) -> LetterValue {
 
 type CardPosition = BoundedU8<1, 54>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PlainText (pub Vec<UpperLetter>);
 
 impl PlainText {
@@ -57,6 +57,7 @@ impl PlainText {
     }
 
     /// Converts a PlainText into a String
+    // TODO - Implement Display instead which will also create to_string
     pub fn to_string(&self) -> String {
         let mut s = String::new();
         for c in self.0.iter() {
@@ -68,6 +69,7 @@ impl PlainText {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool { self.0.is_empty()}
 }
 
 impl FromStr for PlainText {
@@ -101,12 +103,13 @@ impl FromStr for PlainText {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CypherText (pub Vec<UpperLetter>);
 impl CypherText {
     pub fn new() -> CypherText {
         CypherText(Vec::new())
     }
+    // TODO - Implement Display instead which will also create to_string
 
     pub fn to_string(&self) -> String {
         let mut s = String::new();
@@ -122,6 +125,7 @@ impl CypherText {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
 impl FromStr for CypherText {
@@ -151,13 +155,14 @@ impl FromStr for CypherText {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Passphrase (pub Vec<UpperLetter>);
 
 impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
     }
+    // TODO - Implement Display instead which will also create to_string
 
     pub fn to_string(&self) -> String {
         let mut s = String::new();
@@ -170,6 +175,7 @@ impl Passphrase {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
 impl FromStr for Passphrase {
@@ -203,6 +209,7 @@ impl FromStr for Passphrase {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct KeyStream (pub Vec<UpperLetter>);
 
 impl KeyStream {
@@ -223,6 +230,7 @@ impl KeyStream {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool{ self.0.is_empty() }
 }
 
 impl FromStr for KeyStream {
@@ -504,6 +512,7 @@ mod tests {
             let mut key_deck: Cards;
             let mut ks: KeyStream;
 
+            // TODO - fix "flatten will run forever if iterator returns error" issue
             for line in lines.flatten() {
                 if let Some(pt_str) = pt_re.captures(&line) {
                     pt = PlainText::from_str(&pt_str[1]).unwrap();
@@ -517,7 +526,7 @@ mod tests {
                     ct = CypherText::from_str(&ct_str[1]).unwrap();
 
                     key_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-                    if pp.0.len() > 0 {
+                    if !pp.is_empty() {
                         key_deck = key_deck_from_passphrase(&pp);
                     }
                     ks = get_key_stream(key_deck, pt.0.len());
