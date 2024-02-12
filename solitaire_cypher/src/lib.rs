@@ -275,7 +275,7 @@ impl Value for Card {
 
 fn value_init() -> HashMap<Card, CardValue> {
     let mut values = HashMap::new();
-    // can panics if next line broken - illegal value for JokersPerDeck
+    // can panic if next line broken - illegal value for JokersPerDeck
     let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
     for (i, card) in new_deck.0.iter().enumerate() {
         if i < 53 {  // have to skip last card as it will generate illegal value
@@ -505,47 +505,50 @@ mod tests {
     //     Ciphertext:  FMUBY BMAXH NQXCJ
     //
     // which repeats for each test.
+    // Test vectors obtained from: https://www.schneier.com/academic/solitaire/ as
+    // referenced from https://en.wikipedia.org/wiki/Solitaire_(cipher)
     fn test_vectors_from_wiki() {
         let pt_re = Regex::new(r"^Plaintext: +([A-Z]+) *$").unwrap();
         let ct_re = Regex::new(r"^Ciphertext: +((([A-Z]{5}+) *)+) *$").unwrap();
         let key_re = Regex::new(r"^Key: +('([a-z]+)'|(<null key>)) *$").unwrap();
-        if let Ok(lines) = read_lines("./sol-test.txt") {
-            let mut pt: PlainText = PlainText::new();
-            let mut pp: Passphrase = Passphrase::from_str("").unwrap();
-            let mut ct: CypherText;
-            let mut key_deck: Cards;
-            let mut ks: KeyStream;
+        let lines = read_lines("./sol-test.txt");
+        let lines = lines.expect("failed to open file");
+        let mut pt: PlainText = PlainText::new();
+        let mut pp: Passphrase = Passphrase::from_str("").unwrap();
+        let mut ct: CypherText;
+        let mut key_deck: Cards;
+        let mut ks: KeyStream;
+        let mut got_one = false;
 
-            // TODO - fix "flatten will run forever if iterator returns error" issue
-            for line in lines.flatten() {
-                if let Some(pt_str) = pt_re.captures(&line) {
-                    pt = PlainText::from_str(&pt_str[1]).unwrap();
-                } else if let Some(pp_str) = key_re.captures(&line) {
-                    if let Ok(ppp) = Passphrase::from_str(&pp_str[1]) {
-                        pp = ppp;
-                    } else {
-                        pp = Passphrase::from_str("").unwrap();
-                    }
-                } else if let Some(ct_str) = ct_re.captures(&line) {
-                    ct = CypherText::from_str(&ct_str[1]).unwrap();
-
-                    key_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-                    if !pp.is_empty() {
-                        key_deck = key_deck_from_passphrase(&pp);
-                    }
-                    ks = get_key_stream(key_deck, pt.0.len());
-                    let computed_ct = encrypt(&pt, &ks);
-                    let computed_ct_str = computed_ct.to_string();
-                    let ct_str = ct.to_string();
-                    assert_eq!(computed_ct_str, ct_str);
-                    let computed_pt = decrypt(&ct, &ks);
-                    let computed_pt_str = computed_pt.to_string();
-                    assert_eq!(computed_pt_str, pt.to_string());
+        for line in lines {
+            let line = line.expect("could not read line");
+            if let Some(pt_str) = pt_re.captures(&line) {
+                pt = PlainText::from_str(&pt_str[1]).unwrap();
+            } else if let Some(pp_str) = key_re.captures(&line) {
+                if let Ok(ppp) = Passphrase::from_str(&pp_str[1]) {
+                    pp = ppp;
+                } else {
+                    pp = Passphrase::from_str("").unwrap();
                 }
+            } else if let Some(ct_str) = ct_re.captures(&line) {
+                ct = CypherText::from_str(&ct_str[1]).unwrap();
+
+                key_deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+                if !pp.is_empty() {
+                    key_deck = key_deck_from_passphrase(&pp);
+                }
+                ks = get_key_stream(key_deck, pt.0.len());
+                let computed_ct = encrypt(&pt, &ks);
+                let computed_ct_str = computed_ct.to_string();
+                let ct_str = ct.to_string();
+                assert_eq!(computed_ct_str, ct_str);
+                let computed_pt = decrypt(&ct, &ks);
+                let computed_pt_str = computed_pt.to_string();
+                assert_eq!(computed_pt_str, pt.to_string());
+                got_one = true;
             }
-        } else {
-            println!("Failed to open test file");
         }
+        assert!(got_one, "failed to run any test vectors");
 
     }
     fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
