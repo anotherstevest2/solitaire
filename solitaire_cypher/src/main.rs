@@ -1,10 +1,8 @@
 use std::io;
 use std::str::FromStr;
-use sdk::*;
-
 use solitaire_cypher::*;
 use clap::{Args, Parser};
-
+use anyhow::Result;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -33,7 +31,6 @@ fn remove_whitespace(s: &mut String) {
 }
 // TODO - thou shall not panic no matter what the user does!
 fn main() -> Result<()> {
-    sdk_init();
     let encrypting: bool;
     let cli = Cli::parse();
     let (enc, dec) = ((&cli.cmd).encrypt, (&cli.cmd).decrypt);

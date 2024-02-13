@@ -11,7 +11,6 @@ use bounded_integer::BoundedU8;
 use rand::Rng;
 use rand_distr::{Normal, Distribution};
 use once_cell::sync::OnceCell;
-use sdk::*;
 
 // TODO - Add tests including Ensure all works with up to six decks of cards
 // TODO - Maybe... Also add trait or whatever so that user can define their own custom deck
@@ -22,6 +21,29 @@ use sdk::*;
 // TODO - Is user required to initialize value table even if they don't use it?
 // TODO - Reorganize and add tests to have: unit tests, integration tests and documentation tests.
 
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub enum JokerId{
+    A,
+    B,
+}
+
+impl fmt::Display for JokerId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            JokerId::A => write!(f, "A"),
+            JokerId::B => write!(f, "B"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub enum Suit {
+    Club,
+    Diamond,
+    Heart,
+    Spade,
+}
+
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -31,20 +53,6 @@ impl fmt::Display for Suit {
             Suit::Spade => write!(f,  "S"),
         }
     }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-pub enum JokerId{
-    A,
-    B,
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-pub enum Suit {
-    Club,
-    Diamond,
-    Heart,
-    Spade,
 }
 
 const NEW_DECK_ARR: [Card; 54] = [
@@ -103,15 +111,6 @@ const NEW_DECK_ARR: [Card; 54] = [
     Card::Joker(JokerId::A),
     Card::Joker(JokerId::B),
 ];
-
-impl fmt::Display for JokerId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            JokerId::A => write!(f, "A"),
-            JokerId::B => write!(f, "B"),
-        }
-    }
-}
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Card {
@@ -459,11 +458,10 @@ impl Cards {
             }
             let mut this = start;
             for (k, candidate_card) in self.0[i + 1..].iter().enumerate() {
-                if usize::from((*candidate_card).default_value()) == usize::from((*this).next_def_val_in_sequence(jokers_per_deck)) {
-                    if !in_sequence[i + 1 + k] {
+                if usize::from((*candidate_card).default_value()) == usize::from((*this).next_def_val_in_sequence(jokers_per_deck))
+                && !in_sequence[i + 1 + k] {
                         in_sequence[i + 1 + k] = true;
                         this = candidate_card;
-                    }
                 }
             }
         }
@@ -617,10 +615,7 @@ impl Cards {
     /// ```
     pub fn draw_till(&mut self, card: Card) -> Option<Cards> {
         let count = self.0.iter().position(|r| *r == card);
-        match count {
-            Some(count) => Some(self.draw_count(count).unwrap()),
-            None => None,
-        }
+        count.map(|count| self.draw_count(count).unwrap())
     }
 
     /// append a stack to the end
@@ -679,6 +674,7 @@ impl Cards {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
 }
 
 

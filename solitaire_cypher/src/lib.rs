@@ -12,7 +12,6 @@ use std::str::FromStr;
 use bounded_integer::BoundedU8;
 use once_cell::sync::OnceCell;
 use card_play::*;
-use sdk::*;
 
 // TODO - Rethink this being a trait - how to best support the user defining their own value table
 //        For Card values...
@@ -429,7 +428,7 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
 /// let ct = encrypt(&pt, &ks);
 /// assert_eq!(ct.to_string(), "OSKJJ JGTMW");
 /// ```
-// TODO - Need to compute cypertext to be multiples of five, extending PlainText by 'X' as
+// TODO - Need to compute cyphertext to be multiples of five, extending PlainText by 'X' as
 //        required.
 pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     if pt.0.len() > ks.0.len() {

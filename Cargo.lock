@@ -96,7 +96,6 @@ dependencies = [
  "pretty_env_logger",
  "rand",
  "rand_distr",
- "sdk",
 ]
 
 [[package]]
@@ -389,17 +388,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dotenvy",
- "lazy_static",
- "log",
- "pretty_env_logger",
-]
-
-[[package]]
 name = "solitaire_cypher"
 version = "0.1.0"
 dependencies = [
@@ -415,7 +403,6 @@ dependencies = [
  "rand",
  "rand_distr",
  "regex",
- "sdk",
 ]
 
 [[package]]
