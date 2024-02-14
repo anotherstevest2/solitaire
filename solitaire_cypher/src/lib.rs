@@ -4,14 +4,14 @@
 //! Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon
 //! See: https://www.schneier.com/academic/solitaire/ and, of course, read Cryptonomicon!
 
+use bounded_integer::BoundedU8;
+use card_play::*;
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fmt;
 use std::fmt::Display;
 use std::str::FromStr;
-use bounded_integer::BoundedU8;
-use once_cell::sync::OnceCell;
-use card_play::*;
 
 // TODO - Rethink this being a trait - how to best support the user defining their own value table
 //        For Card values...
@@ -50,7 +50,7 @@ fn card_val_into_let_val(cv: CardValue) -> LetterValue {
 type CardPosition = BoundedU8<1, 54>;
 
 #[derive(Debug, Clone, Default)]
-pub struct PlainText (pub Vec<UpperLetter>);
+pub struct PlainText(pub Vec<UpperLetter>);
 
 impl PlainText {
     pub fn new() -> PlainText {
@@ -60,7 +60,9 @@ impl PlainText {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn is_empty(&self) -> bool { self.0.is_empty()}
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl Display for PlainText {
@@ -105,7 +107,7 @@ impl FromStr for PlainText {
 }
 
 #[derive(Debug, Default)]
-pub struct CypherText (pub Vec<UpperLetter>);
+pub struct CypherText(pub Vec<UpperLetter>);
 impl CypherText {
     pub fn new() -> CypherText {
         CypherText(Vec::new())
@@ -113,7 +115,9 @@ impl CypherText {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl FromStr for CypherText {
@@ -152,12 +156,12 @@ impl Display for CypherText {
             }
             s.push(u8::from(*c) as char);
         }
-       write!(f, "{}", s)
+        write!(f, "{}", s)
     }
 }
 
 #[derive(Debug, Default)]
-pub struct Passphrase (pub Vec<UpperLetter>);
+pub struct Passphrase(pub Vec<UpperLetter>);
 
 impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
@@ -166,26 +170,28 @@ impl Passphrase {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl FromStr for Passphrase {
     type Err = &'static str;
 
-/// Creates a Passphrase from a slice of letters - all lower case letters mapped to upper during
-/// creation.  Single quotes are removed to ease use of wikipedia's solitaire cypher test vectors
-///
-/// returns Err string if non-letters are encountered in the slice
-///
-/// # Examples
-/// ```
-/// use std::str::FromStr;
-/// use solitaire_cypher::Passphrase;
-/// let ps_result = Passphrase::from_str("cryptoNOMicon");
-/// assert!(ps_result.is_ok());
-/// println!("Passphrase: {}",ps_result.unwrap().to_string());
-/// assert!(Passphrase::from_str("crypto NOMicon").is_err());
-/// ```
+    /// Creates a Passphrase from a slice of letters - all lower case letters mapped to upper during
+    /// creation.  Single quotes are removed to ease use of wikipedia's solitaire cypher test vectors
+    ///
+    /// returns Err string if non-letters are encountered in the slice
+    ///
+    /// # Examples
+    /// ```
+    /// use std::str::FromStr;
+    /// use solitaire_cypher::Passphrase;
+    /// let ps_result = Passphrase::from_str("cryptoNOMicon");
+    /// assert!(ps_result.is_ok());
+    /// println!("Passphrase: {}",ps_result.unwrap().to_string());
+    /// assert!(Passphrase::from_str("crypto NOMicon").is_err());
+    /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut pp = Passphrase(Vec::new());
         let s = &remove_ticks(s);
@@ -211,7 +217,7 @@ impl Display for Passphrase {
 }
 
 #[derive(Debug, Default)]
-pub struct KeyStream (pub Vec<UpperLetter>);
+pub struct KeyStream(pub Vec<UpperLetter>);
 
 impl KeyStream {
     pub fn new() -> KeyStream {
@@ -220,7 +226,9 @@ impl KeyStream {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn is_empty(&self) -> bool{ self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl Display for KeyStream {
@@ -268,7 +276,7 @@ static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 impl Value for Card {
     fn value(&self) -> CardValue {
         // can panic if value table init code broken - not all cards included
-        *VALUES.get_or_init(|| {value_init()}).get(self).unwrap()
+        *VALUES.get_or_init(|| value_init()).get(self).unwrap()
     }
 }
 
@@ -277,9 +285,10 @@ fn value_init() -> HashMap<Card, CardValue> {
     // can panic if next line broken - illegal value for JokersPerDeck
     let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
     for (i, card) in new_deck.0.iter().enumerate() {
-        if i < 53 {  // have to skip last card as it will generate illegal value
+        if i < 53 {
+            // have to skip last card as it will generate illegal value
             // can panic if next line broken - illegal card value.
-            values.insert(*card, CardValue::new((i + 1) as u8).unwrap());  // values not zero based
+            values.insert(*card, CardValue::new((i + 1) as u8).unwrap()); // values not zero based
         }
     }
     // add the last joker (order is A then B) with same (53) value as the other one
@@ -288,12 +297,11 @@ fn value_init() -> HashMap<Card, CardValue> {
     values
 }
 
-
 fn next_deck_state(mut key_deck: Cards) -> Cards {
     // A Joker move
     assert!(key_deck.move_card_circular(Card::Joker(JokerId::A), 0, 1));
     // B Joker move
-    assert!(key_deck.move_card_circular(Card::Joker(JokerId::B),0, 2));
+    assert!(key_deck.move_card_circular(Card::Joker(JokerId::B), 0, 2));
 
     // Triple cut at Jokers (aka fools. fa, fb being fool A and fool B respectively)
     // and swap top with bottom leaving Jokers in place
@@ -327,14 +335,14 @@ fn next_deck_state(mut key_deck: Cards) -> Cards {
         look_at(key_deck.0.len() - 1)
         .unwrap()
         .value();
-    let TwoStacks(top, mut bottom) = key_deck
-        .cut((*bottom_card_value).into());
-    let bottom_card = bottom.0
+    let TwoStacks(top, mut bottom) = key_deck.cut((*bottom_card_value).into());
+    let bottom_card = bottom
+        .0
         // can panic if code broken - bottom should have at least the bottom card
         .pop()
         .unwrap();
     bottom.append(top);
-    bottom.append(Cards(vec!(bottom_card)));
+    bottom.append(Cards(vec![bottom_card]));
     bottom.clone()
 }
 
@@ -351,22 +359,21 @@ fn next_deck_state(mut key_deck: Cards) -> Cards {
 ///
 pub fn key_deck_from_passphrase(passphrase: &Passphrase) -> Cards {
     // can panic if code broken - next line uses illegal joker count
-    let mut deck = Cards::new(1,JokersPerDeck::new(2).unwrap());
+    let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
 
     for letter in passphrase.iter() {
         deck = next_deck_state(deck);
 
         // count cut at passphrase letter value, maintain bottom card
         let letter_value = letter_into_value(letter);
-        let TwoStacks(top, mut bottom) = deck
-            .clone()
-            .cut(letter_value.into());
-        let bottom_card = bottom.0
+        let TwoStacks(top, mut bottom) = deck.clone().cut(letter_value.into());
+        let bottom_card = bottom
+            .0
             // can panic if code broken - bottom should always have a bottom card
             .pop()
             .unwrap();
         bottom.append(top);
-        bottom.append(Cards(vec!(bottom_card)));
+        bottom.append(Cards(vec![bottom_card]));
         deck = bottom.clone();
     }
     deck
@@ -386,7 +393,7 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
     let mut key_deck = key_deck;
     let mut key_stream = KeyStream::new();
     // Ensure key length is a multiple of 5 (as is tradition) so the cypher text will be also
-    let key_length= ((key_length + 4) / 5) * 5; // integer divide to drop remainder
+    let key_length = ((key_length + 4) / 5) * 5; // integer divide to drop remainder
     while key_stream.0.len() < key_length {
         key_deck = next_deck_state(key_deck);
 
@@ -403,13 +410,14 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
         let output_card_candidate_position = card_val_into_position(top_card_value);
         let output_card_candidate = &key_deck
             // can panic if code broken - output card should always be present
-            .look_at(output_card_candidate_position
-                .into())
+            .look_at(output_card_candidate_position.into())
             .unwrap();
-        if  **output_card_candidate != Card::Joker(JokerId::A)
-            && **output_card_candidate != Card::Joker(JokerId::B) {
-            key_stream.0
-                .push(value_into_letter(&card_val_into_let_val((*output_card_candidate).value())));
+        if **output_card_candidate != Card::Joker(JokerId::A)
+            && **output_card_candidate != Card::Joker(JokerId::B)
+        {
+            key_stream.0.push(value_into_letter(&card_val_into_let_val(
+                (*output_card_candidate).value(),
+            )));
         }
     }
     key_stream
@@ -436,16 +444,15 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     }
 
     let pt = (*pt).clone();
-    let mut ct: CypherText = CypherText(vec!());
+    let mut ct: CypherText = CypherText(vec![]);
 
     for (i, p) in pt.0.iter().enumerate() {
         let pt_value = letter_into_value(p);
         let key_value = letter_into_value(&ks.0[i]);
         // need to convert sum to zero based (-1) before modulo and back to one based (+1) after
         ct.0.push(value_into_letter(
-            &(LetterValue::new(
-                ((u8::from(pt_value) + key_value - 1) % 26) + 1)
-                .unwrap())));
+            &(LetterValue::new(((u8::from(pt_value) + key_value - 1) % 26) + 1).unwrap()),
+        ));
     }
     ct
 }
@@ -464,37 +471,37 @@ pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
 /// assert_eq!("SOLITAIREX", recovered_pt.to_string());
 /// ```
 pub fn decrypt(ct: &CypherText, ks: &KeyStream) -> PlainText {
-
     if ct.0.len() > ks.0.len() {
         panic!("KeyStream not long enough");
     }
 
-    let mut pt: PlainText = PlainText(vec!());
+    let mut pt: PlainText = PlainText(vec![]);
     for (i, c) in ct.0.iter().enumerate() {
         let ct_value = letter_into_value(c);
         let k_value = letter_into_value(&ks.0[i]);
         pt.0.push(value_into_letter(
             &(LetterValue::new(
-                (((i16::from(ct_value) - i16::from(k_value) - 1)
-                    .rem_euclid(26)) + 1) as u8)
-                .unwrap())));
+                (((i16::from(ct_value) - i16::from(k_value) - 1).rem_euclid(26)) + 1) as u8,
+            )
+            .unwrap()),
+        ));
     }
     pt
 }
 
 fn remove_ticks(s: &str) -> String {
-        s.chars().filter(|c| *c != '\'').collect()
-    }
+    s.chars().filter(|c| *c != '\'').collect()
+}
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use regex::Regex;
     use std::fs::File;
     use std::io::{self, BufRead};
     use std::path::Path;
-    use regex::Regex;
-    use super::*;
 
-    # [test]
+    #[test]
     // Open the file of test vectors "sol-test.txt" and run all the enclosed tests
     // Example (repeating) file format:
 
@@ -548,10 +555,11 @@ mod tests {
             }
         }
         assert!(got_one, "failed to run any test vectors");
-
     }
     fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-        where P: AsRef<Path>, {
+    where
+        P: AsRef<Path>,
+    {
         let file = File::open(filename)?;
         Ok(io::BufReader::new(file).lines())
     }

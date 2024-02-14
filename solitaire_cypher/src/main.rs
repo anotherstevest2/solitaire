@@ -1,8 +1,8 @@
+use anyhow::Result;
+use clap::{Args, Parser};
+use solitaire_cypher::*;
 use std::io;
 use std::str::FromStr;
-use solitaire_cypher::*;
-use clap::{Args, Parser};
-use anyhow::Result;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -46,83 +46,89 @@ fn main() -> Result<()> {
     // TODO - Fix for real user input error handling
     let key_deck = key_deck_from_passphrase(&Passphrase::from_str(&cli.passphrase).unwrap());
     let ks = get_key_stream(key_deck, stdin.len());
-    println!("stdin length: {}, keystream length: {}", stdin.len(), ks.len());
+    println!(
+        "stdin length: {}, keystream length: {}",
+        stdin.len(),
+        ks.len()
+    );
     let output: String;
     if encrypting {
         output = encrypt(&PlainText::from_str(&stdin).unwrap(), &ks).to_string();
-    } else { // decrypting
+    } else {
+        // decrypting
         output = decrypt(&CypherText::from_str(&stdin).unwrap(), &ks).to_string();
     }
-    println!("/n encrypting: {}, passphrase: {}, input: {}, output: {}\n",encrypting,
-         &cli.passphrase, stdin, output);
+    println!(
+        "/n encrypting: {}, passphrase: {}, input: {}, output: {}\n",
+        encrypting, &cli.passphrase, stdin, output
+    );
     println!("{}", output);
 
+    //     println!();
+    //     trace!("a trace example");
+    //     debug!("deboogging");
+    //     info!("such information");
+    //     warn!("o_O");
+    //     error!("boom");
+    //
+    //     // Manual tests of card_play
+    // const ITER_COUNT: usize = 1000;
+    //     let mut metrics = [0usize; ITER_COUNT];
+    //     for i in 0..ITER_COUNT {
+    //         let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    //         deck.shuffle_fy();
+    //         metrics[i] = deck.shuffle_rs_metric();
+    //     }
+    //     let sum = metrics.iter().sum::<usize>() as f64;
+    //     let mean = sum / ITER_COUNT as f64;
+    //     println!("the mean metric of {ITER_COUNT} fy randomized new decks is {mean}");
+    //
+    //
+    //     let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    //     println!("New deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    //     println!("by default values:\n {:?}", deck.by_def_raw_values());
+    //     println!();
+    //     deck.reverse();
+    //     println!("Reversed new deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    //     println!("by default values:\n {:?}", deck.by_def_raw_values());
+    //     println!();
+    //     let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    //     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
+    //     println!("After cut top: {top}");
+    //     println!();
+    //     println!("After cut bottom: {bottom}");
+    //     println!();
+    //     println!("Cut point: {}", top.0.len());
+    //     println!();
+    //     let mut deck = TwoStacks(top, bottom).merge(MergeType::RANDOM);
+    //     println!("after first riffle:");
+    //     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    //     println!("by default values:\n {:?}", deck.by_def_raw_values());
+    //     println!();
+    //     deck.shuffle(10, NoiseLevel::new(10).unwrap());
+    //     println!("after 10 more riffles:");
+    //     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    //     println!("by default values:\n {:?}", deck.by_def_raw_values());
+    //     println!();
+    //     deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+    //     deck.shuffle_fy();
+    //     println!("after fully randomizing shuffle");
+    //     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    //     println!("by default values:\n {:?}", deck.by_def_raw_values());
+    //     println!();
+    //
+    //     println!("testing cutting of an empty deck");
+    //     let deck = Cards(vec!());
+    //     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(5).unwrap());
+    //     println!("top: {}, bottom: {}", top, bottom);
+    //
+    //     println!("\ntesting 52 perfect In shuffles:");
+    //     let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+    //     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
+    //     deck.shuffle(52, NoiseLevel::new(0).unwrap());
+    //     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
 
-//     println!();
-//     trace!("a trace example");
-//     debug!("deboogging");
-//     info!("such information");
-//     warn!("o_O");
-//     error!("boom");
-//
-//     // Manual tests of card_play
-// const ITER_COUNT: usize = 1000;
-//     let mut metrics = [0usize; ITER_COUNT];
-//     for i in 0..ITER_COUNT {
-//         let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-//         deck.shuffle_fy();
-//         metrics[i] = deck.shuffle_rs_metric();
-//     }
-//     let sum = metrics.iter().sum::<usize>() as f64;
-//     let mean = sum / ITER_COUNT as f64;
-//     println!("the mean metric of {ITER_COUNT} fy randomized new decks is {mean}");
-//
-//
-//     let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-//     println!("New deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-//     println!("by default values:\n {:?}", deck.by_def_raw_values());
-//     println!();
-//     deck.reverse();
-//     println!("Reversed new deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-//     println!("by default values:\n {:?}", deck.by_def_raw_values());
-//     println!();
-//     let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-//     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(10).unwrap());
-//     println!("After cut top: {top}");
-//     println!();
-//     println!("After cut bottom: {bottom}");
-//     println!();
-//     println!("Cut point: {}", top.0.len());
-//     println!();
-//     let mut deck = TwoStacks(top, bottom).merge(MergeType::RANDOM);
-//     println!("after first riffle:");
-//     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-//     println!("by default values:\n {:?}", deck.by_def_raw_values());
-//     println!();
-//     deck.shuffle(10, NoiseLevel::new(10).unwrap());
-//     println!("after 10 more riffles:");
-//     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-//     println!("by default values:\n {:?}", deck.by_def_raw_values());
-//     println!();
-//     deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
-//     deck.shuffle_fy();
-//     println!("after fully randomizing shuffle");
-//     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-//     println!("by default values:\n {:?}", deck.by_def_raw_values());
-//     println!();
-//
-//     println!("testing cutting of an empty deck");
-//     let deck = Cards(vec!());
-//     let TwoStacks(top, bottom) = deck.cut_with_noise(NoiseLevel::new(5).unwrap());
-//     println!("top: {}, bottom: {}", top, bottom);
-//
-//     println!("\ntesting 52 perfect In shuffles:");
-//     let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
-//     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-//     deck.shuffle(52, NoiseLevel::new(0).unwrap());
-//     println!("Deck: {deck}, shuffle rising sequence metric: {}", deck.shuffle_rs_metric());
-
-//  -----------TODO - Mover into Solitaire_Cypher testing
+    //  -----------TODO - Mover into Solitaire_Cypher testing
 
     // Manual tests of solitaire_cypher
     // ----------- TODO - Move the internal cypher operation tests into the solitaire_cypher crate
@@ -274,10 +280,6 @@ fn main() -> Result<()> {
     //         .into())
     //     .unwrap();
     // println!("Output Card Candidate: {}", **output_card_candidate);
-
-
-
-
 
     // println!("\ntwelveth vector test:");
     // let passphrase: Passphrase = Passphrase::from_str("cryptonomicon").unwrap();
