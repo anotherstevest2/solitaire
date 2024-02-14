@@ -268,10 +268,10 @@ impl Cards {
     /// ```
     pub fn cut(mut self, index: usize) -> TwoStacks {
         if index >= self.0.len() {
-            return TwoStacks(self.clone(), Cards(vec![]));
+            return TwoStacks(self, Cards(vec![]));
         }
         let bottom = Cards(self.0.split_off(index));
-        TwoStacks(self.clone(), bottom)
+        TwoStacks(self, bottom)
     }
 
     /// divide a stack into two stacks with the cut point
