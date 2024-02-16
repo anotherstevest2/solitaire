@@ -11,6 +11,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
 
 // TODO - Add tests including Ensure all works with up to six decks of cards
 // TODO - Maybe... Also add trait or whatever so that user can define their own custom deck
@@ -20,7 +21,7 @@ use std::fmt;
 //        checking.
 // TODO - Is user required to initialize value table even if they don't use it?
 // TODO - Reorganize and add tests to have: unit tests, integration tests and documentation tests.
-
+pub struct IllegalStringError;
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum JokerId {
     A,
@@ -32,6 +33,17 @@ impl fmt::Display for JokerId {
         match *self {
             JokerId::A => write!(f, "A"),
             JokerId::B => write!(f, "B"),
+        }
+    }
+}
+
+impl FromStr for JokerId {
+    type Err = IllegalStringError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "A" => Ok(JokerId::A),
+            "B" => Ok(JokerId::B),
+            _ => Err(IllegalStringError),
         }
     }
 }
@@ -51,6 +63,19 @@ impl fmt::Display for Suit {
             Suit::Diamond => write!(f, "D"),
             Suit::Heart => write!(f, "H"),
             Suit::Spade => write!(f, "S"),
+        }
+    }
+}
+
+impl FromStr for Suit {
+    type Err = IllegalStringError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "C" => Ok(Suit::Club),
+            "D" => Ok(Suit::Diamond),
+            "H" => Ok(Suit::Heart),
+            "S" => Ok(Suit::Spade),
+            _ => Err(IllegalStringError),
         }
     }
 }
@@ -207,6 +232,34 @@ impl fmt::Display for Card {
             Card::King(ref s) => write!(f, "K{}", s),
             Card::Joker(ref id) => write!(f, "F{}", id),
         }
+    }
+}
+
+impl FromStr for Card {
+    type Err = IllegalStringError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != 2 { return Err(IllegalStringError); }
+        match s.chars().nth(2) {
+            
+        }
+        match s.chars().nth(1) {
+            'A' =>
+            '2' =>
+            '3' =>
+            '4' =>
+            '5' =>
+            '6' =>
+            '7' =>
+            '8' =>
+            '9' =>
+            'T' =>
+            'J' =>
+            'Q' =>
+            'K' =>
+            'F' =>
+            _ =>
+        }
+
     }
 }
 
