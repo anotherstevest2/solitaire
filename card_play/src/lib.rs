@@ -11,6 +11,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 // TODO - Add tests including Ensure all works with up to six decks of cards
@@ -22,19 +23,24 @@ use std::str::FromStr;
 // TODO - Is user required to initialize value table even if they don't use it?
 // TODO - Reorganize and add tests to have: unit tests, integration tests and documentation tests.
 // TODO - Decide if Release mode should have panic = 'abort' instead of unwinding (smaller executable)
-// TODO - Look for cases in which I return Result<T, String> and change them to Result<T, &'static str>
 // TODO - Evaluate all of my created error types.  I should probably: "impl std::error::Error for ... {}" them
 
 #[derive(Debug)]
 pub struct IllegalStringError;
+impl Display for IllegalStringError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "IllegalStringError")
+    }
+}
+impl std::error::Error for IllegalStringError {}
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum JokerId {
     A,
     B,
 }
 
-impl fmt::Display for JokerId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for JokerId {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             JokerId::A => write!(f, "A"),
             JokerId::B => write!(f, "B"),
@@ -61,8 +67,8 @@ pub enum Suit {
     Spade,
 }
 
-impl fmt::Display for Suit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Suit {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Suit::Club => write!(f, "C"),
             Suit::Diamond => write!(f, "D"),
@@ -219,8 +225,8 @@ impl Card {
     }
 }
 
-impl fmt::Display for Card {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Card {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Card::Ace(ref s) => write!(f, "A{}", s),
             Card::Two(ref s) => write!(f, "2{}", s),
@@ -315,7 +321,7 @@ impl Cards {
             let mut additional: Vec<Card> = Vec::new();
             for _ in 2..count {
                 for card in deck.iter() {
-                    additional.push(card.clone());
+                    additional.push(*card);
                 }
             }
             deck.append(&mut additional);
@@ -402,7 +408,7 @@ impl Cards {
     pub fn shuffle(&mut self, riffle_count: usize, noise: NoiseLevel) {
         for _ in 0..riffle_count {
             // if shuffle noise is off (i.e. 0) use a "perfect" IN merge.
-            // A perfect in merge of 52 cards should return deck to it's original state after
+            // A perfect in merge of 52 cards should return deck to its original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
             let m_type = match u8::from(noise) {
                 0 => MergeType::IN,
@@ -448,7 +454,7 @@ impl Cards {
     /// ```
     pub fn in_shuffle(&mut self, riffle_count: usize) {
         for _ in 0..riffle_count {
-            // A perfect in merge of 52 cards should return deck to it's original state after
+            // A perfect in merge of 52 cards should return deck to its original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
             *self = self.clone().cut(self.0.len() / 2).merge(MergeType::IN);
         }
@@ -469,7 +475,7 @@ impl Cards {
     /// ```
     pub fn out_shuffle(&mut self, riffle_count: usize) {
         for _ in 0..riffle_count {
-            // A perfect in merge of 52 cards should return deck to it's original state after
+            // A perfect in merge of 52 cards should return deck to its original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
             *self = self.clone().cut(self.0.len() / 2).merge(MergeType::OUT);
         }
@@ -477,7 +483,7 @@ impl Cards {
     // required to init values for *all* possible cards
     fn default_value_init() -> HashMap<Card, DefCardValue> {
         let mut values = HashMap::new();
-        // can panics if next line broken - illegal value for JokersPerDeck
+        // following can panic if next line broken - illegal value for JokersPerDeck
         let new_deck = Cards::new(1, JokersPerDeck::new(2).unwrap()); // new deck w/ Joker -> 54 cards
         for (i, card) in new_deck.0.iter().enumerate() {
             // can panic if next line broken - illegal card value.
@@ -580,6 +586,9 @@ impl Cards {
             .0
             .iter()
             .enumerate()
+            // linter likes the following two commented-out lines better than my filter_map line
+            // .filter(|(_idx, r)| (**r == card))
+            // .map(|(idx, _r)| idx)
             .filter_map(|(idx, r)| (*r == card).then(|| idx))
             .nth(match_index)
         else {
@@ -599,7 +608,7 @@ impl Cards {
     }
 
     /// reposition a specified index of a specified card by a specified number of places
-    /// (i.e. in a multi-deck stack, the first occurrence of the size of the card (say, six of
+    /// (i.e. in a multi-deck stack, the first occurrence of the size of the card, say, six of
     /// hearts, would have an index of 0, the second occurrence would have index 1)
     /// If the card displacement wraps around the end of the deck, the move from one end to the
     /// other DOES NOT count as a one position change.
@@ -634,7 +643,7 @@ impl Cards {
         // perform wrap around adjustment (i.e. as if cards are in a circle, not a stack)
         // if position change is positive and position_end is less than position start, we need to
         // add one (since there is no card to skip over between the last and first in a stack as we
-        // wrap around.  Similarly if the position change is negative and position_end is greater
+        // wrap around).  Similarly, if the position change is negative and position_end is greater
         // than the position start, we need to subtract one,
 
         if position_change > 0 && position_end < position_start {
@@ -659,7 +668,7 @@ impl Cards {
     /// assert_eq!(deck.find(Card::Five(Suit::Heart)).unwrap(), 4);
     /// ```
     pub fn find(&self, card: Card) -> Option<usize> {
-        self.0.iter().position(|r| (*r == card))
+        self.0.iter().position(|r| *r == card)
     }
 
     /// draw count cards
@@ -760,8 +769,8 @@ impl Cards {
     }
 }
 
-impl fmt::Display for Cards {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Cards {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let mut it = self.0.iter().peekable();
         while let Some(card) = it.next() {
             write!(f, "{}", card)?;
@@ -817,7 +826,7 @@ impl TwoStacks {
         let TwoStacks(mut top, mut bottom) = self;
         let mut cards = Cards::default();
         let mut rng = rand::thread_rng();
-        for i in 0..(&top.0.len() + &bottom.0.len()) {
+        for i in 0..(top.0.len() + bottom.0.len()) {
             let first_try: &mut Vec<Card>;
             let then_try: &mut Vec<Card>;
             // Reminder - we are popping from the bottom of the stacks and later reversing
@@ -906,7 +915,7 @@ mod tests {
         const ITER_COUNT: usize = 1000;
         let mut metrics = [0usize; ITER_COUNT];
         let mut deck_size: usize = 0;
-        for i in 0..ITER_COUNT {
+        for metric in metrics.iter_mut() {
             let mut deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck"));
             deck_size = deck.0.len();
             assert_eq!(
@@ -915,7 +924,7 @@ mod tests {
                 "code assumption of even sized deck is broken"
             );
             deck.shuffle_fy();
-            metrics[i] = deck.shuffle_rs_metric();
+            *metric = deck.shuffle_rs_metric();
         }
         let sum = metrics.iter().sum::<usize>() as f64;
         let mean = sum / ITER_COUNT as f64;
@@ -928,7 +937,7 @@ mod tests {
         const ITER_COUNT: usize = 1000;
         let mut metrics = [0usize; ITER_COUNT];
         let mut deck_size: usize = 0;
-        for i in 0..ITER_COUNT {
+        for metric in metrics.iter_mut() {
             let mut deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck failed"));
             deck_size = deck.0.len();
             assert_eq!(
@@ -937,7 +946,7 @@ mod tests {
                 "code assumption of even sized deck is broken"
             );
             deck.shuffle(12, NoiseLevel::new(5).expect("new NoiseLevel failed"));
-            metrics[i] = deck.shuffle_rs_metric();
+            *metric = deck.shuffle_rs_metric();
         }
         let sum = metrics.iter().sum::<usize>() as f64;
         let mean = sum / ITER_COUNT as f64;
@@ -968,7 +977,7 @@ mod tests {
     #[test]
     fn test_cards_from_str() {
         let card_str = "AC QH FA FB";
-        let cards = Cards::from_str(&card_str);
+        let cards = Cards::from_str(card_str);
         let cards = cards.expect("Illegal String");
         let new_card_str = cards.to_string();
         assert_eq!(new_card_str, "AC QH FA FB");
