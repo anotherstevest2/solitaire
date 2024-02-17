@@ -21,6 +21,11 @@ use std::str::FromStr;
 //        checking.
 // TODO - Is user required to initialize value table even if they don't use it?
 // TODO - Reorganize and add tests to have: unit tests, integration tests and documentation tests.
+// TODO - Decide if Release mode should have panic = 'abort' instead of unwinding (smaller executable)
+// TODO - Look for cases in which I return Result<T, String> and change them to Result<T, &'static str>
+// TODO - Evaluate all of my created error types.  I should probably: "impl std::error::Error for ... {}" them
+
+#[derive(Debug)]
 pub struct IllegalStringError;
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum JokerId {
@@ -175,7 +180,7 @@ impl Card {
     pub fn default_value(&self) -> DefCardValue {
         // can panic if value table init code broken - not all cards included
         *DEFAULT_VALUES
-            .get_or_init(|| Cards::default_value_init())
+            .get_or_init(Cards::default_value_init)
             .get(self)
             .unwrap()
     }
@@ -238,28 +243,41 @@ impl fmt::Display for Card {
 impl FromStr for Card {
     type Err = IllegalStringError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != 2 { return Err(IllegalStringError); }
-        match s.chars().nth(2) {
-            
+        if s.len() != 2 {
+            return Err(IllegalStringError);
         }
-        match s.chars().nth(1) {
-            'A' =>
-            '2' =>
-            '3' =>
-            '4' =>
-            '5' =>
-            '6' =>
-            '7' =>
-            '8' =>
-            '9' =>
-            'T' =>
-            'J' =>
-            'Q' =>
-            'K' =>
-            'F' =>
-            _ =>
+        // Can panic if previous/next line broken
+        if s.chars().nth(0).unwrap() == 'F' {
+            // Can panic if length check line or next line broken
+            let id = JokerId::from_str(&s[1..=1])?;
+            Ok(Card::Joker(id))
+        } else {
+            // Can panic if length check code or next line code broken
+            let suit = match s.chars().nth(1).unwrap() {
+                'S' => Suit::Spade,
+                'H' => Suit::Heart,
+                'D' => Suit::Diamond,
+                'C' => Suit::Club,
+                _ => return Err(IllegalStringError),
+            };
+            // Can panic if length check line or next line broken
+            match s.chars().nth(0).unwrap() {
+                'A' => Ok(Card::Ace(suit)),
+                '2' => Ok(Card::Two(suit)),
+                '3' => Ok(Card::Three(suit)),
+                '4' => Ok(Card::Four(suit)),
+                '5' => Ok(Card::Five(suit)),
+                '6' => Ok(Card::Six(suit)),
+                '7' => Ok(Card::Seven(suit)),
+                '8' => Ok(Card::Eight(suit)),
+                '9' => Ok(Card::Nine(suit)),
+                'T' => Ok(Card::Ten(suit)),
+                'J' => Ok(Card::Jack(suit)),
+                'Q' => Ok(Card::Queen(suit)),
+                'K' => Ok(Card::King(suit)),
+                _ => Err(IllegalStringError),
+            }
         }
-
     }
 }
 
@@ -351,7 +369,7 @@ impl Cards {
     pub fn cut_with_noise(self, noise: NoiseLevel) -> TwoStacks {
         if noise == NoiseLevel::new(0).unwrap() {
             let count = self.0.len();
-            return self.cut(count / 2);
+            self.cut(count / 2)
         } else {
             let count = self.0.len() as f64;
             let noise: i16 = noise.into();
@@ -386,8 +404,7 @@ impl Cards {
             // if shuffle noise is off (i.e. 0) use a "perfect" IN merge.
             // A perfect in merge of 52 cards should return deck to it's original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
-            let m_type: MergeType;
-            m_type = match u8::from(noise) {
+            let m_type = match u8::from(noise) {
                 0 => MergeType::IN,
                 _ => MergeType::RANDOM,
             };
@@ -415,8 +432,9 @@ impl Cards {
         }
     }
 
-    /// perform perfect "in" shuffle (not random, original deck, if of even length, will reappear
-    /// after shuffle count equal to the number of cards.)
+    /// perform perfect "in" shuffle (not random, original deck of even length, will reappear
+    /// after shuffle count equal to the number of cards.)  With an "in" shuffle, the bottom card
+    /// of the resulting stack is that which was on the bottom of the "top" stack.
     ///
     /// # Examples
     /// ```
@@ -436,7 +454,8 @@ impl Cards {
         }
     }
     /// perform perfect "out" shuffle (not random, original 52 card deck, will reappear
-    /// after shuffle count equal to the number of cards.)
+    /// after shuffle count equal to the number of cards.)  Note:  the bottom card of the resulting
+    /// stack is that which was on the bottom of the bottom stack.
     ///
     /// # Examples
     /// ```
@@ -449,12 +468,6 @@ impl Cards {
     /// assert_eq!(deck, ref_deck);
     /// ```
     pub fn out_shuffle(&mut self, riffle_count: usize) {
-        let deck_size = self.0.len();
-        assert_eq!(
-            deck_size % 2,
-            0,
-            "code assumption of even sized deck is broken"
-        );
         for _ in 0..riffle_count {
             // A perfect in merge of 52 cards should return deck to it's original state after
             // 52 shuffles (whereas it only takes 8 perfect OUT shuffles to do so)
@@ -660,9 +673,9 @@ impl Cards {
     /// let hand = deck.draw_count(5).unwrap();
     /// assert_eq!(hand.len(), 5);
     /// ```
-    pub fn draw_count(&mut self, count: usize) -> Result<Cards, String> {
+    pub fn draw_count(&mut self, count: usize) -> Result<Cards, &'static str> {
         if count > self.0.len() {
-            return Err("Can not draw more than are available".to_string());
+            return Err("Can not draw more than are available");
         }
         Ok(Cards(self.0.drain(0..count).collect()))
     }
@@ -705,9 +718,9 @@ impl Cards {
     /// let card = deck.look_at(52).unwrap();
     /// assert_eq!(*card, Card::Joker(JokerId::A));
     /// ```
-    pub fn look_at(&self, index: usize) -> Result<&Card, String> {
+    pub fn look_at(&self, index: usize) -> Result<&Card, &'static str> {
         if index >= self.0.len() {
-            return Err("Index beyond end of Cards".to_string());
+            return Err("Index beyond end of Cards");
         }
         Ok(&self.0[index])
     }
@@ -749,10 +762,26 @@ impl Cards {
 
 impl fmt::Display for Cards {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for card in self.0.iter() {
-            write!(f, "{}, ", card)?;
+        let mut it = self.0.iter().peekable();
+        while let Some(card) = it.next() {
+            write!(f, "{}", card)?;
+            if it.peek().is_some() {
+                write!(f, " ")?;
+            }
         }
         Ok(())
+    }
+}
+
+impl FromStr for Cards {
+    type Err = IllegalStringError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut cards: Cards = Cards(vec![]);
+        for card_str in s.split(' ') {
+            cards.0.push(Card::from_str(card_str)?);
+        }
+        Ok(cards)
     }
 }
 
@@ -825,7 +854,7 @@ mod tests {
 
     #[test]
     fn test_new_cards() {
-        let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+        let deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck failed"));
         assert_eq!(deck.0.len(), 54, "new deck with jokers wrong length");
         for (i, card) in deck.0.iter().enumerate() {
             assert_eq!(
@@ -837,7 +866,7 @@ mod tests {
 
     #[test]
     fn test_raw_and_default_values() {
-        let deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+        let deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck failed"));
         for (i, value) in deck.by_def_raw_values().iter().enumerate() {
             assert_eq!(usize::from(*value), i + 1, "broken raw value function");
         }
@@ -845,7 +874,7 @@ mod tests {
 
     #[test]
     fn test_rs_shuffle_metric_sanity() {
-        let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+        let mut deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck failed"));
         assert_eq!(
             deck.shuffle_rs_metric(),
             1,
@@ -858,7 +887,7 @@ mod tests {
             "New reversed deck did not get rs_metric of 53"
         );
         deck.reverse();
-        deck.shuffle(1, NoiseLevel::new(0).unwrap());
+        deck.shuffle(1, NoiseLevel::new(0).expect("new NoiseLevel failed"));
         assert_eq!(
             deck.shuffle_rs_metric(),
             2,
@@ -878,7 +907,7 @@ mod tests {
         let mut metrics = [0usize; ITER_COUNT];
         let mut deck_size: usize = 0;
         for i in 0..ITER_COUNT {
-            let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+            let mut deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck"));
             deck_size = deck.0.len();
             assert_eq!(
                 deck_size % 2,
@@ -900,14 +929,14 @@ mod tests {
         let mut metrics = [0usize; ITER_COUNT];
         let mut deck_size: usize = 0;
         for i in 0..ITER_COUNT {
-            let mut deck = Cards::new(1, JokersPerDeck::new(2).unwrap());
+            let mut deck = Cards::new(1, JokersPerDeck::new(2).expect("new JokersPerDeck failed"));
             deck_size = deck.0.len();
             assert_eq!(
                 deck_size % 2,
                 0,
                 "code assumption of even sized deck is broken"
             );
-            deck.shuffle(12, NoiseLevel::new(5).unwrap());
+            deck.shuffle(12, NoiseLevel::new(5).expect("new NoiseLevel failed"));
             metrics[i] = deck.shuffle_rs_metric();
         }
         let sum = metrics.iter().sum::<usize>() as f64;
@@ -918,8 +947,9 @@ mod tests {
 
     #[test]
     fn test_in_out_shuffles() {
-        let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
-        let reference_deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+        let mut deck = Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
+        let reference_deck =
+            Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
         let deck_size = deck.0.len();
         assert_eq!(
             deck_size % 2,
@@ -930,8 +960,17 @@ mod tests {
         assert_ne!(deck, reference_deck);
         deck.in_shuffle(deck_size - 8);
         assert_eq!(deck, reference_deck);
-        let mut deck = Cards::new(1, JokersPerDeck::new(0).unwrap());
+        let mut deck = Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
         deck.out_shuffle(8);
         assert_eq!(deck, reference_deck);
+    }
+
+    #[test]
+    fn test_cards_from_str() {
+        let card_str = "AC QH FA FB";
+        let cards = Cards::from_str(&card_str);
+        let cards = cards.expect("Illegal String");
+        let new_card_str = cards.to_string();
+        assert_eq!(new_card_str, "AC QH FA FB");
     }
 }

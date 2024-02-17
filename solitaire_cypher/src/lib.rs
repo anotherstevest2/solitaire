@@ -100,7 +100,7 @@ impl FromStr for PlainText {
             }
         }
         while pt.0.len() % 5 != 0 {
-            pt.0.push(UpperLetter::new('X' as u8).unwrap());
+            pt.0.push(UpperLetter::new(b'X').unwrap());
         }
         Ok(pt)
     }
@@ -276,7 +276,7 @@ static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 impl Value for Card {
     fn value(&self) -> CardValue {
         // can panic if value table init code broken - not all cards included
-        *VALUES.get_or_init(|| value_init()).get(self).unwrap()
+        *VALUES.get_or_init(value_init).get(self).unwrap()
     }
 }
 
