@@ -586,10 +586,8 @@ impl Cards {
             .0
             .iter()
             .enumerate()
-            // linter likes the following two commented-out lines better than my filter_map line
-            // .filter(|(_idx, r)| (**r == card))
-            // .map(|(idx, _r)| idx)
-            .filter_map(|(idx, r)| (*r == card).then(|| idx))
+            .filter(|(_, r)| (**r == card))
+            .map(|(idx, _)| idx)
             .nth(match_index)
         else {
             return false;
@@ -771,12 +769,12 @@ impl Cards {
 
 impl Display for Cards {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let mut it = self.0.iter().peekable();
-        while let Some(card) = it.next() {
-            write!(f, "{}", card)?;
-            if it.peek().is_some() {
-                write!(f, " ")?;
-            }
+        let mut cards = self.0.iter();
+        if let Some(card) = cards.next() {
+            write!(f, "{card}")?;
+        }
+        for card in cards {
+            write!(f, " {card}")?;
         }
         Ok(())
     }
