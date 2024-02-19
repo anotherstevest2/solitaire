@@ -445,7 +445,7 @@ impl Cards {
 
     /// perform perfect "in" shuffle (not random, original deck of even length, will reappear
     /// after shuffle count equal to the number of cards.)  With an "in" shuffle, the bottom card
-    /// of the resulting stack is that which was on the bottom of the "top" stack.
+    /// of the resulting stack is that which was on the bottom of the top stack.
     ///
     /// # Examples
     /// ```
@@ -502,8 +502,8 @@ impl Cards {
     /// include "sequences" of just a single value (not obvious why but that's the way they are
     /// counted in the literature...) and the closer the value is to the deck size/2 seems to be the
     /// actual metric (bell curve and all that):
-    /// //https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is
-    /// https://drive.google.com/file/d/1EoJhtHAO5iFjikkH35KDVrmmJQpXVb5q/view?usp=sharing
+    /// <https://math.stackexchange.com/questions/4354898/how-can-you-measure-how-shuffled-a-deck-of-cards-is>
+    /// <https://drive.google.com/file/d/1EoJhtHAO5iFjikkH35KDVrmmJQpXVb5q/view?usp=sharing>
     /// Note that my adaptation for the inclusion of one or more jokers per deck and the use of
     /// multiple decks will lead to different values for the same level of shuffling of the one-deck
     /// no joker case (which can be checked by comparing riffle shuffling with Fisher-Yates).
@@ -568,7 +568,7 @@ impl Cards {
         self.0.reverse();
     }
 
-    /// reposition a specified index of a specified card by a specified number of places
+    /// reposition the specified occurrence a specified card by a specified number of places
     /// (i.e. in a multi-deck stack, the second occurrence of the six of hearts would have index 1)
     /// If the card displacement wraps around the end of the deck, the move from one end to the
     /// other counts as a one position change.
@@ -607,7 +607,7 @@ impl Cards {
         true
     }
 
-    /// reposition a specified index of a specified card by a specified number of places
+    /// reposition a specified occurrence of a specified card by a specified number of places
     /// (i.e. in a multi-deck stack, the first occurrence of the size of the card, say, six of
     /// hearts, would have an index of 0, the second occurrence would have index 1)
     /// If the card displacement wraps around the end of the deck, the move from one end to the
@@ -791,9 +791,9 @@ impl Display for Cards {
 /// // So if I see the 4 of Hearts, I know that the next card is 7 of Spades.
 /// use std::str::FromStr;
 /// use card_play::Cards;
-/// let stebbins_arr = "AC 4H 7S TD KC 3H 6S 9D QC 2H 5S 8D JC AH 4S 7D TC KH 3S 6D 9C QH 2S \
+/// let stebbins_str = "AC 4H 7S TD KC 3H 6S 9D QC 2H 5S 8D JC AH 4S 7D TC KH 3S 6D 9C QH 2S \
 /// 5D 8C JH AS 4D 7C TH KS 3D 6C 9H QS 2D 5C 8H JS AD 4C 7H TS KD 3C 6H 9S QD 2C 5H 8S JD";
-/// let stebbins_deck: Cards = Cards::from_str(stebbins_arr).expect("illegal card array format");
+/// let stebbins_deck: Cards = Cards::from_str(stebbins_str).expect("illegal card array format");
 /// ```
 impl FromStr for Cards {
     type Err = IllegalStringError;
@@ -807,9 +807,13 @@ impl FromStr for Cards {
     }
 }
 
-/// type for containing two ordered collections of cards, top and bottom, as you would obtain
+/// type for containing two ordered collections of cards, by convention (top, bottom), as you would obtain
 /// after a cut
-pub struct TwoStacks(pub Cards, pub Cards);
+pub struct TwoStacks(
+    /// top
+    pub Cards,
+    /// bottom
+    pub Cards); 
 
 /// argument type specifying how two stacks of cards are to be merged - perfect "IN" shuffle,
 /// perfect "out" shuffle or shuffled such that the next card to the output has equal odds of
