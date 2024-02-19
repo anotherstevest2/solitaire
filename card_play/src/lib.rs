@@ -14,15 +14,6 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-// TODO - Add tests including Ensure all works with up to six decks of cards
-// TODO - Maybe... Also add trait or whatever so that user can define their own custom deck
-//        May have to distinguish sequence value from score (point?) value
-// TODO - Figure out how to have the Cards user define the bounding for the values put in the
-//        Table so that Cards can do bounds checking internally - or, get rid of value bounds
-//        checking.
-// TODO - Is user required to initialize value table even if they don't use it?
-// TODO - Reorganize and add tests to have: unit tests, integration tests and documentation tests.
-// TODO - Decide if Release mode should have panic = 'abort' instead of unwinding (smaller executable)
 // TODO - Evaluate all of my created error types.  I should probably: "impl std::error::Error for ... {}" them
 
 #[derive(Debug)]
@@ -319,7 +310,7 @@ impl Cards {
 
         if count > 1 {
             let mut additional: Vec<Card> = Vec::new();
-            for _ in 2..count {
+            for _ in 2..=count {
                 for card in deck.iter() {
                     additional.push(*card);
                 }
@@ -597,9 +588,6 @@ impl Cards {
 
         let card = self.0.remove(position_start);
 
-        // ensure we are still in the range vec insert requires (corner case at end of deck)
-        // TODO - position_end = position_end.rem_euclid(self.0.len() + 1);
-
         self.0.insert(position_end, card);
 
         true
@@ -780,6 +768,19 @@ impl Display for Cards {
     }
 }
 
+/// Create Cards from &str.  Note: in addition to being the usual counterpart to Display
+/// (and to_string()), this is also the most convenient way to create a stacked deck.
+/// #Examples
+/// ```
+/// // Si Stebbins stack (The suit order is "CHaSeD" (Clubs Hearts Spades Diamonds).
+/// // The value order is to add three to get to the next card)
+/// // So if I see the 4 of Hearts, I know that the next card is 7 of Spades.
+/// use std::str::FromStr;
+/// use card_play::Cards;
+/// let stebbins_arr = "AC 4H 7S TD KC 3H 6S 9D QC 2H 5S 8D JC AH 4S 7D TC KH 3S 6D 9C QH 2S \
+/// 5D 8C JH AS 4D 7C TH KS 3D 6C 9H QS 2D 5C 8H JS AD 4C 7H TS KD 3C 6H 9S QD 2C 5H 8S JD";
+/// let stebbins_deck: Cards = Cards::from_str(stebbins_arr).expect("illegal card array format");
+/// ```
 impl FromStr for Cards {
     type Err = IllegalStringError;
 
@@ -969,6 +970,22 @@ mod tests {
         assert_eq!(deck, reference_deck);
         let mut deck = Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
         deck.out_shuffle(8);
+        assert_eq!(deck, reference_deck);
+    }
+
+    #[test]
+    fn test_six_decks_reverse_append() {
+        let mut deck = Cards::new(6, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
+        assert_eq!(deck.len(), 52 * 6);
+        deck.reverse();
+        let mut reference_deck =
+            Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
+        reference_deck.reverse();
+        for _ in 0..5 {
+            let mut append_deck = Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
+            append_deck.reverse();
+            reference_deck.append(append_deck);
+        }
         assert_eq!(deck, reference_deck);
     }
 

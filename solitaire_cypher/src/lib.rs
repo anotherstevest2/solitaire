@@ -13,13 +13,6 @@ use std::fmt;
 use std::fmt::Display;
 use std::str::FromStr;
 
-// TODO - Rethink this being a trait - how to best support the user defining their own value table
-//        For Card values...
-trait Value {
-    // (if used?) required to init values for all possible cards, values must be in range of CardValue
-    fn value(&self) -> CardValue;
-}
-
 pub type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
@@ -273,6 +266,10 @@ impl FromStr for KeyStream {
 
 static VALUES: OnceCell<HashMap<Card, CardValue>> = OnceCell::new();
 
+trait Value {
+    fn value(&self) -> CardValue;
+}
+
 impl Value for Card {
     fn value(&self) -> CardValue {
         // can panic if value table init code broken - not all cards included
@@ -436,8 +433,6 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
 /// let ct = encrypt(&pt, &ks);
 /// assert_eq!(ct.to_string(), "OSKJJ JGTMW");
 /// ```
-// TODO - Need to compute cyphertext to be multiples of five, extending PlainText by 'X' as
-//        required.
 pub fn encrypt(pt: &PlainText, ks: &KeyStream) -> CypherText {
     if pt.0.len() > ks.0.len() {
         panic!("KeyStream not long enough");
