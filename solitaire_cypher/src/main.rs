@@ -31,13 +31,12 @@ fn remove_whitespace(s: &mut String) {
 }
 // TODO - thou shall not panic no matter what the user does!
 fn main() -> Result<()> {
-    let encrypting: bool;
     let cli = Cli::parse();
     let (enc, dec) = ((&cli.cmd).encrypt, (&cli.cmd).decrypt);
 
-    match (enc, dec) {
-        (true, _) => encrypting = true,
-        (_, true) => encrypting = false,
+    let encrypting = match (enc, dec) {
+        (true, _) => true,
+        (_, true) => false,
         _ => unreachable!(),
     }
 

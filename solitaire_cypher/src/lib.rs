@@ -1,8 +1,8 @@
 //! # Solitaire Cypher
 //!
-//! an implementation of the playing card based cypher created by
+//! An implementation of the playing card based cypher created by
 //! Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon
-//! See: https://www.schneier.com/academic/solitaire/ and, of course, read Cryptonomicon!
+//! See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
 use bounded_integer::BoundedU8;
 use card_play::*;
@@ -13,6 +13,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::str::FromStr;
 
+/// bounded type for ascii uppercase values A-Z
 pub type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
@@ -42,6 +43,7 @@ fn card_val_into_let_val(cv: CardValue) -> LetterValue {
 
 type CardPosition = BoundedU8<1, 54>;
 
+/// container for an ordered collection of UpperLetters intended as plaintext
 #[derive(Debug, Clone, Default)]
 pub struct PlainText(pub Vec<UpperLetter>);
 
@@ -99,6 +101,7 @@ impl FromStr for PlainText {
     }
 }
 
+/// container for an ordered collection of UpperLetters intended for use as cyphertext
 #[derive(Debug, Default)]
 pub struct CypherText(pub Vec<UpperLetter>);
 impl CypherText {
@@ -153,6 +156,7 @@ impl Display for CypherText {
     }
 }
 
+/// container for an ordered collection of UpperLetters intended for use as a passphrase
 #[derive(Debug, Default)]
 pub struct Passphrase(pub Vec<UpperLetter>);
 
@@ -209,6 +213,7 @@ impl Display for Passphrase {
     }
 }
 
+/// container for an ordered collection of UpperLetters for use as a KeyStream
 #[derive(Debug, Default)]
 pub struct KeyStream(pub Vec<UpperLetter>);
 
@@ -420,8 +425,8 @@ pub fn get_key_stream(key_deck: Cards, key_length: usize) -> KeyStream {
     key_stream
 }
 
-/// Encrypt PlainText into CypherText using the given KeyStream
-/// Will panic if KeyStream less than PlainText length rounded
+/// Encrypt PlainText into CypherText using the given KeyStream.
+/// Will panic if KeyStream length is less than PlainText length rounded
 /// up to the nearest multiple of 5.
 ///
 /// Examples

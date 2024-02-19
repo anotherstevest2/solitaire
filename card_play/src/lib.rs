@@ -288,13 +288,13 @@ impl FromStr for Card {
     }
 }
 
-/// bounded argument type for specifying level of randomness.  0 -> none, 10 -> the largest standard deviation
+/// Bounded argument type for specifying level of randomness.  0 -> none, 10 -> the largest standard deviation
 pub type NoiseLevel = BoundedU8<0, 10>;
 
-/// bounded argument type for specifying number of jokers per deck of cards
+/// Bounded argument type for specifying number of jokers per deck of cards
 pub type JokersPerDeck = BoundedU8<0, 2>;
 
-/// type for containing an ordered collection of cards (i.e. a stack)
+/// Container for an ordered collection of cards (i.e. a stack)
 #[derive(PartialEq, Clone, Default, Debug)]
 pub struct Cards(pub Vec<Card>);
 
@@ -335,7 +335,7 @@ impl Cards {
         Cards(deck)
     }
 
-    /// divide a card stack into two stacks with the division before the
+    /// Divide a card stack into two stacks with the division before the
     /// card specified by the index.  Put another way the length of the
     /// resulting top stack is equal to the index and the card identified
     /// by the index is the first card of the bottom stack
@@ -356,7 +356,7 @@ impl Cards {
         TwoStacks(self, bottom)
     }
 
-    /// divide a stack into two stacks with the cut point
+    /// Divide a stack into two stacks with the cut point
     /// random based on a normal distribution (mean at the
     /// half point) as follows:
     /// noise == 0 => exact cut after first half (even count) or
@@ -399,7 +399,7 @@ impl Cards {
         }
     }
 
-    /// perform riffle_count shuffles with a settable level of randomness in both the
+    /// Perform riffle_count shuffles with a settable level of randomness in both the
     /// cut point and merge via a NoiseLevel parameter
     ///
     /// # Examples
@@ -423,7 +423,7 @@ impl Cards {
         }
     }
 
-    /// perform Fisher-Yates randomization (pick cards at random from origin deck to create
+    /// Perform Fisher-Yates randomization (pick cards at random from origin deck to create
     /// destination deck) as a shuffle
     ///
     /// # Examples
@@ -443,7 +443,7 @@ impl Cards {
         }
     }
 
-    /// perform perfect "in" shuffle (not random, original deck of even length, will reappear
+    /// Perform perfect "in" shuffle (not random, original deck of even length, will reappear
     /// after shuffle count equal to the number of cards.)  With an "in" shuffle, the bottom card
     /// of the resulting stack is that which was on the bottom of the top stack.
     ///
@@ -464,7 +464,7 @@ impl Cards {
             *self = self.clone().cut(self.0.len() / 2).merge(MergeType::IN);
         }
     }
-    /// perform perfect "out" shuffle (not random, original 52 card deck, will reappear
+    /// Perform perfect "out" shuffle (not random, original 52 card deck, will reappear
     /// after shuffle count equal to the number of cards.)  Note:  the bottom card of the resulting
     /// stack is that which was on the bottom of the bottom stack.
     ///
@@ -554,7 +554,7 @@ impl Cards {
         n
     }
 
-    /// reverse the order of Cards
+    /// Reverse the order of Cards
     ///
     /// # Examples
     /// ```
@@ -568,7 +568,7 @@ impl Cards {
         self.0.reverse();
     }
 
-    /// reposition the specified occurrence a specified card by a specified number of places
+    /// Reposition the specified occurrence a specified card by a specified number of places
     /// (i.e. in a multi-deck stack, the second occurrence of the six of hearts would have index 1)
     /// If the card displacement wraps around the end of the deck, the move from one end to the
     /// other counts as a one position change.
@@ -607,7 +607,7 @@ impl Cards {
         true
     }
 
-    /// reposition a specified occurrence of a specified card by a specified number of places
+    /// Reposition a specified occurrence of a specified card by a specified number of places
     /// (i.e. in a multi-deck stack, the first occurrence of the size of the card, say, six of
     /// hearts, would have an index of 0, the second occurrence would have index 1)
     /// If the card displacement wraps around the end of the deck, the move from one end to the
@@ -640,7 +640,7 @@ impl Cards {
         let mut position_end =
             (position_start as isize + position_change).rem_euclid(self.0.len() as isize) as usize;
 
-        // perform wrap around adjustment (i.e. as if cards are in a circle, not a stack)
+        // Perform wrap around adjustment (i.e. as if cards are in a circle, not a stack)
         // if position change is positive and position_end is less than position start, we need to
         // add one (since there is no card to skip over between the last and first in a stack as we
         // wrap around).  Similarly, if the position change is negative and position_end is greater
@@ -659,7 +659,7 @@ impl Cards {
         true
     }
 
-    /// get the index for a cards as an `Option<usize>`.  None if not found
+    /// Get the index for a cards as an `Option<usize>`.  None if not found
     ///
     /// # Examples
     /// ```
@@ -671,7 +671,7 @@ impl Cards {
         self.0.iter().position(|r| *r == card)
     }
 
-    /// draw count cards
+    /// Draw count cards
     /// Result Err a string indicating more cards were requested
     /// than are present
     ///
@@ -689,7 +689,7 @@ impl Cards {
         Ok(Cards(self.0.drain(0..count).collect()))
     }
 
-    /// draw all cards preceding that of the card specified.
+    /// Draw all cards preceding that of the card specified.
     ///
     /// # Examples
     /// ```
@@ -704,7 +704,7 @@ impl Cards {
         count.map(|count| self.draw_count(count).unwrap())
     }
 
-    /// append a stack to the end
+    /// Append a stack to the end
     ///
     /// # Examples
     /// ```
@@ -718,7 +718,7 @@ impl Cards {
         self.0.append(&mut cards.0);
     }
 
-    /// obtain a reference Result to a card at a give index.  Error string if index out of range
+    /// Obtain a reference Result to a card at a give index.  Error string if index out of range
     ///
     /// # Examples
     /// ```
@@ -753,7 +753,7 @@ impl Cards {
         values
     }
 
-    /// get the length
+    /// Get the length
     ///
     /// # Examples
     /// ```
@@ -807,15 +807,15 @@ impl FromStr for Cards {
     }
 }
 
-/// type for containing two ordered collections of cards, by convention (top, bottom), as you would obtain
+/// Container for two ordered collections of cards, by convention (top, bottom), as you would obtain
 /// after a cut
 pub struct TwoStacks(
     /// top
     pub Cards,
     /// bottom
-    pub Cards); 
+    pub Cards);
 
-/// argument type specifying how two stacks of cards are to be merged - perfect "IN" shuffle,
+/// Argument type specifying how two stacks of cards are to be merged - perfect "In" shuffle,
 /// perfect "out" shuffle or shuffled such that the next card to the output has equal odds of
 /// coming from either stack
 #[derive(PartialEq)]
@@ -825,14 +825,14 @@ pub enum MergeType {
     RANDOM,
 }
 impl TwoStacks {
-    /// combine the two stacks in TwoStacks into one Cards stack by nominally alternating
+    /// Combine the two stacks in TwoStacks into one Cards stack by nominally alternating
     /// from the stacks starting at the bottom as in a riffle shuffle but with one of three
     /// different techniques as specified by the MergeType.
     /// MergeType::RANDOM uses effectively a coin flip to determine which stack goes next
     /// MergeType::IN starts at the bottom of the top stack and alternates between stacks from then on.
     /// MergeType::Out starts at the bottom of the bottom stack and alternates between stacks from then on.
-    /// While a perfect faro shuffle (IN or OUT) assumes an equal number of cards in each stack
-    /// the merge method will just keep pulling from the stack that as cards if the other stack has
+    /// While a perfect faro shuffle (In or Out) assumes an equal number of cards in each stack
+    /// the merge method will just keep pulling from the stack that has cards if the other stack has
     /// been depleted.
     ///
     /// # Examples
