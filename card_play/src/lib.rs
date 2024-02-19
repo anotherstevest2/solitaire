@@ -3,7 +3,10 @@
 //! A set of types, methods and functions for manipulating playing cards (common french-suited with or
 //! without jokers). Support for cutting, merging, both human style and fully random ordering shuffles,
 //! measuring shuffle quality (rising sequence based), drawing cards, moving cards in a deck
-//! etc.
+//! etc.  Handles card stacks containing more than one deck.
+//! Target user is someone who want to manipulate the deck such as magicians, etc.
+//! rather than users looking for an engine for card games.  The solitaire_cypher was the first
+//! use.
 
 use bounded_integer::BoundedU8;
 use once_cell::sync::OnceCell;
@@ -14,8 +17,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-// TODO - Evaluate all of my created error types.  I should probably: "impl std::error::Error for ... {}" them
-
+/// from_str() could create the requested type
 #[derive(Debug)]
 pub struct IllegalStringError;
 impl Display for IllegalStringError {
@@ -24,6 +26,9 @@ impl Display for IllegalStringError {
     }
 }
 impl std::error::Error for IllegalStringError {}
+
+/// Used the differentiate the two Jokers in a deck of cards.  In a Cards::new() deck with Jokers,
+/// the next to last card is JokerId::A, and the last card is JokerId::B
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum JokerId {
     A,
@@ -50,6 +55,7 @@ impl FromStr for JokerId {
     }
 }
 
+/// the four card suits in a common (french-suited) deck of cards
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Suit {
     Club,
@@ -82,6 +88,26 @@ impl FromStr for Suit {
     }
 }
 
+/// the common card denominations (Ace, Two.., King, Joker)
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub enum Card {
+    Ace(Suit),
+    Two(Suit),
+    Three(Suit),
+    Four(Suit),
+    Five(Suit),
+    Six(Suit),
+    Seven(Suit),
+    Eight(Suit),
+    Nine(Suit),
+    Ten(Suit),
+    Jack(Suit),
+    Queen(Suit),
+    King(Suit),
+    Joker(JokerId),
+}
+
+/// Array specifying the commonly-ordered contents of a new deck of cards (Bicycle etc.)
 const NEW_DECK_ARR: [Card; 54] = [
     Card::Ace(Suit::Heart),
     Card::Two(Suit::Heart),
@@ -139,26 +165,10 @@ const NEW_DECK_ARR: [Card; 54] = [
     Card::Joker(JokerId::B),
 ];
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-pub enum Card {
-    Ace(Suit),
-    Two(Suit),
-    Three(Suit),
-    Four(Suit),
-    Five(Suit),
-    Six(Suit),
-    Seven(Suit),
-    Eight(Suit),
-    Nine(Suit),
-    Ten(Suit),
-    Jack(Suit),
-    Queen(Suit),
-    King(Suit),
-    Joker(JokerId),
-}
-
+/// Bounded default card value
 pub type DefCardValue = BoundedU8<1, 54>; // default card value
 
+/// Default card values ranging from 1 through 54 inclusive, ordered as a new card deck
 static DEFAULT_VALUES: OnceCell<HashMap<Card, DefCardValue>> = OnceCell::new();
 
 impl Card {
@@ -168,7 +178,7 @@ impl Card {
     /// Joker A, Joker B.
     ///
     /// # Examples
-    /// ```
+   /// ```
     /// use card_play::{Card, Suit, DefCardValue};
     /// let ah = &Card::Ace(Suit::Heart);
     /// let ah_val = ah.default_value();
@@ -278,9 +288,13 @@ impl FromStr for Card {
     }
 }
 
+/// bounded argument type for specifying level of randomness.  0 -> none, 10 -> the largest standard deviation
 pub type NoiseLevel = BoundedU8<0, 10>;
+
+/// bounded argument type for specifying number of jokers per deck of cards
 pub type JokersPerDeck = BoundedU8<0, 2>;
 
+/// type for containing an ordered collection of cards (i.e. a stack)
 #[derive(PartialEq, Clone, Default, Debug)]
 pub struct Cards(pub Vec<Card>);
 
@@ -645,7 +659,7 @@ impl Cards {
         true
     }
 
-    /// get the index for a cards as an Option<usize>.  None if not found
+    /// get the index for a cards as an `Option<usize>`.  None if not found
     ///
     /// # Examples
     /// ```
@@ -793,8 +807,13 @@ impl FromStr for Cards {
     }
 }
 
+/// type for containing two ordered collections of cards, top and bottom, as you would obtain
+/// after a cut
 pub struct TwoStacks(pub Cards, pub Cards);
 
+/// argument type specifying how two stacks of cards are to be merged - perfect "IN" shuffle,
+/// perfect "out" shuffle or shuffled such that the next card to the output has equal odds of
+/// coming from either stack
 #[derive(PartialEq)]
 pub enum MergeType {
     IN,
