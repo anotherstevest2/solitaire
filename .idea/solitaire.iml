@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/solitaire-cypher/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/card_play/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/sdk/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/solitaire_cypher/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/solitaire_cypher/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
