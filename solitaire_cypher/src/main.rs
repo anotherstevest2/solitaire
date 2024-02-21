@@ -1,9 +1,35 @@
-use std::fmt::{Display, Formatter};
+//! # Solitaire Cypher
+//!
+//! An implementation of the playing card based cypher created by
+//! Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
+//! Encrypts or Decrypts stdin to stdout based on the command line provided passphrase.
+//! Returns error if the passphrase includes any non-letter characters.
+//! See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
+//!
+//! #Examples
+//! ```
+//!$ ./solitaire_cypher --help
+//! Usage: solitaire_cypher --passphrase <PASSPHRASE> <--encrypt|--decrypt>
+//!
+//! Options:
+//! -e, --encrypt                  Encrypt stdin with keystream generated from passphrase
+//! -d, --decrypt                  Decrypt stdin with keystream generated from passphrase
+//! -p, --passphrase <PASSPHRASE>  passphrase for key generation
+//! -h, --help                     Print help
+//! -V, --version                  Print version
+//! $ echo "SOLITAIRE" | ./solitaire_cypher --passphrase cryptonomicon --encrypt
+//! KIRAK SFJAN
+//! $ echo "KIRAK SFJAN" | ./solitaire_cypher --passphrase cryptonomicon --decrypt
+//! SOLITAIREX
+//! $
+//! ```
+
 use anyhow::Result;
 use clap::{Args, Parser};
 use solitaire_cypher::*;
-use std::{fmt, io};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use std::{fmt, io};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -28,7 +54,6 @@ struct Cmd {
     decrypt: bool,
 }
 
-
 #[derive(Debug)]
 struct IllegalArgumentFormatError;
 impl Display for IllegalArgumentFormatError {
@@ -46,7 +71,6 @@ impl Display for IllegalInputFormatError {
     }
 }
 impl std::error::Error for IllegalInputFormatError {}
-
 
 fn remove_whitespace(s: &mut String) {
     s.retain(|c| !c.is_whitespace());
@@ -76,8 +100,8 @@ fn main() -> Result<()> {
     let key_deck = key_deck_from_passphrase(&passphrase);
 
     let output = if encrypting {
-        let pt =  match PlainText::from_str(&stdin) {
-            Ok(pt)  => pt,
+        let pt = match PlainText::from_str(&stdin) {
+            Ok(pt) => pt,
             Err(e) => {
                 eprintln!("{}", e);
                 return Err(IllegalInputFormatError.into());
@@ -87,7 +111,7 @@ fn main() -> Result<()> {
         encrypt(&pt, &ks).to_string()
     } else {
         let ct = match CypherText::from_str(&stdin) {
-            Ok(ct)  => ct,
+            Ok(ct) => ct,
             Err(e) => {
                 eprintln!("{}", e);
                 return Err(IllegalInputFormatError.into());

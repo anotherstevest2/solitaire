@@ -1,7 +1,7 @@
 //! # Solitaire Cypher
 //!
 //! An implementation of the playing card based cypher created by
-//! Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon
+//! Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
 //! See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
 use bounded_integer::BoundedU8;
@@ -51,7 +51,6 @@ impl PlainText {
     pub fn new() -> PlainText {
         PlainText(Vec::new())
     }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -163,6 +162,9 @@ pub struct Passphrase(pub Vec<UpperLetter>);
 impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
+    }
+    pub fn new() -> Passphrase {
+        Passphrase(Vec::new())
     }
     pub fn len(&self) -> usize {
         self.0.len()

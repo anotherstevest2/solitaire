@@ -31,7 +31,9 @@ impl std::error::Error for IllegalStringError {}
 /// the next to last card is JokerId::A, and the last card is JokerId::B
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum JokerId {
+    /// Joker found in penultimate position of a new deck
     A,
+    /// Joker found in last position of a new deck
     B,
 }
 
@@ -178,7 +180,7 @@ impl Card {
     /// Joker A, Joker B.
     ///
     /// # Examples
-   /// ```
+    /// ```
     /// use card_play::{Card, Suit, DefCardValue};
     /// let ah = &Card::Ace(Suit::Heart);
     /// let ah_val = ah.default_value();
@@ -813,7 +815,8 @@ pub struct TwoStacks(
     /// top
     pub Cards,
     /// bottom
-    pub Cards);
+    pub Cards,
+);
 
 /// Argument type specifying how two stacks of cards are to be merged - perfect "In" shuffle,
 /// perfect "out" shuffle or shuffled such that the next card to the output has equal odds of
@@ -1005,7 +1008,8 @@ mod tests {
             Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
         reference_deck.reverse();
         for _ in 0..5 {
-            let mut append_deck = Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
+            let mut append_deck =
+                Cards::new(1, JokersPerDeck::new(0).expect("new JokersPerDeck failed"));
             append_deck.reverse();
             reference_deck.append(append_deck);
         }
