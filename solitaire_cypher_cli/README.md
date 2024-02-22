@@ -2,7 +2,9 @@
 
 An implementation of the playing card based cypher created by
 Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
-Includes crate solitaire_cypher_cli for command line usage.
+Encrypts or Decrypts stdin to stdout based on the command line provided passphrase.
+Returns error if the passphrase includes any non-letter characters.
+Crate solitaire_cypher exists to provide these, and more, functions in a lib.
 See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
 ## License
