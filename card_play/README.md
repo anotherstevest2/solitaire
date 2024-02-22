@@ -1,3 +1,13 @@
+## Card Play
+
+A set of types, methods and functions for manipulating playing cards (common french-suited with or
+without jokers). Support for cutting, merging, both human style and fully random ordering shuffles,
+measuring shuffle quality (rising sequence based), drawing cards, moving cards in a deck
+etc.  Handles card stacks containing more than one deck.
+Target user is someone who want to manipulate the deck such as magicians, etc.
+rather than users looking for an engine for card games.  The solitaire_cypher was the first
+use.
+
 ## License
 
 Licensed under either of
