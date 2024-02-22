@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Card Play
 //!
 //! A set of types, methods and functions for manipulating playing cards (common french-suited with or
@@ -58,6 +59,7 @@ impl FromStr for JokerId {
 }
 
 /// the four card suits in a common (french-suited) deck of cards
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Suit {
     Club,
@@ -91,6 +93,7 @@ impl FromStr for Suit {
 }
 
 /// the common card denominations (Ace, Two.., King, Joker)
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Card {
     Ace(Suit),
@@ -766,6 +769,7 @@ impl Cards {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    #[allow(missing_docs)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -821,6 +825,7 @@ pub struct TwoStacks(
 /// Argument type specifying how two stacks of cards are to be merged - perfect "In" shuffle,
 /// perfect "out" shuffle or shuffled such that the next card to the output has equal odds of
 /// coming from either stack
+#[allow(missing_docs)]
 #[derive(PartialEq)]
 pub enum MergeType {
     IN,

@@ -1,9 +1,11 @@
-//! # Solitaire Cypher
+#![warn(missing_docs)]
+//! # Solitaire Cypher Cli
 //!
 //! An implementation of the playing card based cypher created by
 //! Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
 //! Encrypts or Decrypts stdin to stdout based on the command line provided passphrase.
 //! Returns error if the passphrase includes any non-letter characters.
+//! Crate solitaire_cypher exists to provide these, and more, functions in a lib.
 //! See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 //!
 //! #Examples
@@ -14,7 +16,7 @@
 //! Options:
 //! -e, --encrypt                  Encrypt stdin with keystream generated from passphrase
 //! -d, --decrypt                  Decrypt stdin with keystream generated from passphrase
-//! -p, --passphrase <PASSPHRASE>  passphrase for key generation
+//! -p, --passphrase <PASSPHRASE>  passphrase (letters only) for key generation
 //! -h, --help                     Print help
 //! -V, --version                  Print version
 //! $ echo "SOLITAIRE" | ./solitaire_cypher --passphrase cryptonomicon --encrypt
@@ -38,7 +40,7 @@ struct Cli {
     #[command(flatten)]
     cmd: Cmd,
 
-    /// passphrase for key generation
+    /// passphrase for (letters only) key generation
     #[arg(short, long)]
     passphrase: String,
 }

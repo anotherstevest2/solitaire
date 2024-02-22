@@ -1,7 +1,9 @@
+#![warn(missing_docs)]
 //! # Solitaire Cypher
 //!
 //! An implementation of the playing card based cypher created by
 //! Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
+//! Includes crate solitaire_cypher_cli for command line usage.
 //! See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
 use bounded_integer::BoundedU8;
@@ -48,12 +50,15 @@ type CardPosition = BoundedU8<1, 54>;
 pub struct PlainText(pub Vec<UpperLetter>);
 
 impl PlainText {
+    #[allow(missing_docs)]
     pub fn new() -> PlainText {
         PlainText(Vec::new())
     }
+    #[allow(missing_docs)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    #[allow(missing_docs)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -104,12 +109,15 @@ impl FromStr for PlainText {
 #[derive(Debug, Default)]
 pub struct CypherText(pub Vec<UpperLetter>);
 impl CypherText {
+    #[allow(missing_docs)]
     pub fn new() -> CypherText {
         CypherText(Vec::new())
     }
+    #[allow(missing_docs)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    #[allow(missing_docs)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -163,12 +171,15 @@ impl Passphrase {
     fn iter(&self) -> std::slice::Iter<'_, UpperLetter> {
         self.0.iter()
     }
+    #[allow(missing_docs)]
     pub fn new() -> Passphrase {
         Passphrase(Vec::new())
     }
+    #[allow(missing_docs)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    #[allow(missing_docs)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -220,12 +231,15 @@ impl Display for Passphrase {
 pub struct KeyStream(pub Vec<UpperLetter>);
 
 impl KeyStream {
+    #[allow(missing_docs)]
     pub fn new() -> KeyStream {
         KeyStream(Vec::new())
     }
+    #[allow(missing_docs)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    #[allow(missing_docs)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
