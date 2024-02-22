@@ -1,7 +1,7 @@
 ## Solitaire
 
 Rust workspace for three rust crates (all available on crates.io and documentated on docs.rs):
-- solitaire_cypher_cli: command line interface for encryting and decrypting
+- solitaire_cypher_cli: command line interface for encrypting and decrypting
 - solitaire_cypher: lib with more capability than the cli tool
 - card_play: lib with tools for manipulating decks of cards
 
@@ -21,7 +21,7 @@ Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
 Includes crate solitaire_cypher_cli for command line usage.
 See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
-## Card Play
+## card_play
 
 A set of types, methods and functions for manipulating playing cards (common french-suited with or
 without jokers). Support for cutting, merging, both human style and fully random ordering shuffles,
