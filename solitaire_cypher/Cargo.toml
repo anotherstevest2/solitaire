@@ -1,6 +1,6 @@
 [package]
 name = "solitaire_cypher"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "The playing card based cypher created by Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon"
@@ -13,7 +13,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "solitaire_cypher_cli"
-path = "src/bin/solitaire_cypher_cli.rs"
+path = "src/bin/main.rs"
 
 
 [dependencies]
