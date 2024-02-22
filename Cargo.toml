@@ -2,7 +2,7 @@
 
 members = [
     "solitaire_cypher",
-    "solitaire_cypher",
+    "solitaire_cypher_cli",
     "card_play"
 ]
 
