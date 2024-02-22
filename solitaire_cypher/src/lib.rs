@@ -15,7 +15,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::str::FromStr;
 
-/// bounded type for ascii uppercase values A-Z
+/// Bounded type for ascii uppercase values A-Z
 pub type UpperLetter = BoundedU8<65, 90>;
 
 fn letter_into_value(ul: &UpperLetter) -> LetterValue {
@@ -45,7 +45,7 @@ fn card_val_into_let_val(cv: CardValue) -> LetterValue {
 
 type CardPosition = BoundedU8<1, 54>;
 
-/// container for an ordered collection of UpperLetters intended as plaintext
+/// Container for an ordered collection of UpperLetters intended as plaintext
 #[derive(Debug, Clone, Default)]
 pub struct PlainText(pub Vec<UpperLetter>);
 
@@ -105,7 +105,7 @@ impl FromStr for PlainText {
     }
 }
 
-/// container for an ordered collection of UpperLetters intended for use as cyphertext
+/// Container for an ordered collection of UpperLetters intended for use as cyphertext
 #[derive(Debug, Default)]
 pub struct CypherText(pub Vec<UpperLetter>);
 impl CypherText {
@@ -163,7 +163,7 @@ impl Display for CypherText {
     }
 }
 
-/// container for an ordered collection of UpperLetters intended for use as a passphrase
+/// Container for an ordered collection of UpperLetters intended for use as a passphrase
 #[derive(Debug, Default)]
 pub struct Passphrase(pub Vec<UpperLetter>);
 
@@ -226,7 +226,7 @@ impl Display for Passphrase {
     }
 }
 
-/// container for an ordered collection of UpperLetters for use as a KeyStream
+/// Container for an ordered collection of UpperLetters for use as a KeyStream
 #[derive(Debug, Default)]
 pub struct KeyStream(pub Vec<UpperLetter>);
 

@@ -28,7 +28,7 @@ impl Display for IllegalStringError {
 }
 impl std::error::Error for IllegalStringError {}
 
-/// Used the differentiate the two Jokers in a deck of cards.  In a Cards::new() deck with Jokers,
+/// Used to differentiate the two Jokers in a deck of cards.  In a Cards::new() deck with Jokers,
 /// the next to last card is JokerId::A, and the last card is JokerId::B
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum JokerId {
@@ -58,7 +58,7 @@ impl FromStr for JokerId {
     }
 }
 
-/// the four card suits in a common (french-suited) deck of cards
+/// The four card suits in a common (french-suited) deck of cards
 #[allow(missing_docs)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Suit {
@@ -92,7 +92,7 @@ impl FromStr for Suit {
     }
 }
 
-/// the common card denominations (Ace, Two.., King, Joker)
+/// The common card denominations (Ace, Two.., King, Joker)
 #[allow(missing_docs)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Card {
