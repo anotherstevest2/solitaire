@@ -7,6 +7,33 @@ Returns error if the passphrase includes any non-letter characters.
 Crate solitaire_cypher exists to provide these, and more, functions in a lib.
 See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
+ # Solitaire Cypher Cli
+
+ An implementation of the playing card based cypher created by
+ Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
+ Encrypts or Decrypts stdin to stdout based on the command line provided passphrase.
+ Returns error if the passphrase includes any non-letter characters.
+ Crate solitaire_cypher exists to provide these, and more, functions in a lib.
+ See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
+
+ #Examples
+ ```
+$ ./solitaire_cypher --help
+ Usage: solitaire_cypher --passphrase <PASSPHRASE> <--encrypt|--decrypt>
+
+ Options:
+ -e, --encrypt                  Encrypt stdin with keystream generated from passphrase
+ -d, --decrypt                  Decrypt stdin with keystream generated from passphrase
+ -p, --passphrase <PASSPHRASE>  passphrase (letters only) for key generation
+ -h, --help                     Print help
+ -V, --version                  Print version
+ $ echo "SOLITAIRE" | ./solitaire_cypher --passphrase cryptonomicon --encrypt
+ KIRAK SFJAN
+ $ echo "KIRAK SFJAN" | ./solitaire_cypher --passphrase cryptonomicon --decrypt
+ SOLITAIREX
+ $
+ ```
+
 ## License
 
 Licensed under either of
