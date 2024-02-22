@@ -18,7 +18,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-/// from_str() could create the requested type
+/// from_str() could not create the requested type
 #[derive(Debug)]
 pub struct IllegalStringError;
 impl Display for IllegalStringError {
