@@ -1,4 +1,4 @@
-## solitaire_cypher
+## solitaire_cypher_cli
 
 An implementation of the playing card based cypher created by
 Bruce Schneier and featured in Neal Stephenson’s "Cryptonomicon".
