@@ -1,6 +1,6 @@
 [package]
 name = "solitaire_cypher_cli"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Stephen C Stearns <steve@tomasara.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"

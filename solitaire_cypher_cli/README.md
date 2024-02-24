@@ -13,7 +13,7 @@ cargo install solitaire_cypher_cli
 
 ## Examples
  ```
-$ solitaire_cypher --help
+$ solitaire_cypher_cli --help
  Usage: solitaire_cypher --passphrase <PASSPHRASE> <--encrypt|--decrypt>
 
  Options:
@@ -22,9 +22,9 @@ $ solitaire_cypher --help
  -p, --passphrase <PASSPHRASE>  passphrase (letters only) for key generation
  -h, --help                     Print help
  -V, --version                  Print version
- $ echo "SOLITAIRE" | solitaire_cypher --passphrase cryptonomicon --encrypt
+ $ echo "SOLITAIRE" | solitaire_cypher_cli --passphrase cryptonomicon --encrypt
  KIRAK SFJAN
- $ echo "KIRAK SFJAN" | solitaire_cypher --passphrase cryptonomicon --decrypt
+ $ echo "KIRAK SFJAN" | solitaire_cypher_cli --passphrase cryptonomicon --decrypt
  SOLITAIREX
  $
  ```
