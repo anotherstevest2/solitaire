@@ -7,7 +7,11 @@
  Crate solitaire_cypher exists to provide these, and more, functions in a lib.
  See: <https://www.schneier.com/academic/solitaire/> and, of course, read Cryptonomicon!
 
- #Examples
+## Installation
+
+cargo install solitaire_cypher_cli
+
+## Examples
  ```
 $ ./solitaire_cypher --help
  Usage: solitaire_cypher --passphrase <PASSPHRASE> <--encrypt|--decrypt>
