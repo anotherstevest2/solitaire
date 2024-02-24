@@ -5,7 +5,7 @@ authors = ["Stephen C Stearns <steve@tomasara.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A set of types, methods and functions for manipulating playing cards"
-keywords = ["playing-cards", "card", "magic", "card-manipulation", "deck"]
+keywords = ["playing-cards", "cards", "magic", "card-manipulation", "deck"]
 repository = "https://github.com/anotherstevest2/solitaire"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
