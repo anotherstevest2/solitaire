@@ -13,7 +13,7 @@ cargo install solitaire_cypher_cli
 
 ## Examples
  ```
-$ ./solitaire_cypher --help
+$ solitaire_cypher --help
  Usage: solitaire_cypher --passphrase <PASSPHRASE> <--encrypt|--decrypt>
 
  Options:
