@@ -22,9 +22,9 @@ $ solitaire_cypher --help
  -p, --passphrase <PASSPHRASE>  passphrase (letters only) for key generation
  -h, --help                     Print help
  -V, --version                  Print version
- $ echo "SOLITAIRE" | ./solitaire_cypher --passphrase cryptonomicon --encrypt
+ $ echo "SOLITAIRE" | solitaire_cypher --passphrase cryptonomicon --encrypt
  KIRAK SFJAN
- $ echo "KIRAK SFJAN" | ./solitaire_cypher --passphrase cryptonomicon --decrypt
+ $ echo "KIRAK SFJAN" | solitaire_cypher --passphrase cryptonomicon --decrypt
  SOLITAIREX
  $
  ```
