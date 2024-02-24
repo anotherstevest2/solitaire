@@ -1,10 +1,13 @@
 [package]
 name = "solitaire_cypher_cli"
-version = "0.1.4"
+version = "0.1.5"
+authors = ["Stephen C Stearns <steve@tomasara.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "The playing card based cypher created by Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon"
+description = "CLI for the playing card based cypher created by Bruce Schneier and featured in Neal Stephenson’s Cryptonomicon"
 repository = "https://github.com/anotherstevest2/solitaire"
+keywords = ["cli", "solitaire", "cypher"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
